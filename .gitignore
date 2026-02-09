@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+venv/
+
+# OAuth / Secrets
+config/token.json
+config/credentials.json
+
+# Flask
+instance/
+*.log
+
+# Node (if any)
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
