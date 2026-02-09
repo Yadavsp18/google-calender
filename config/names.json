@@ -1,0 +1,494 @@
+{
+  "names_database": {
+    "version": "1.0",
+    "last_updated": "2026-02-05",
+    "names": [
+      {
+        "display_name": "John",
+        "first_name": "John",
+        "last_name": "",
+        "email": "john.doe@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Anita",
+        "first_name": "Anita",
+        "last_name": "",
+        "email": "anita.sharma@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Rakesh",
+        "first_name": "Rakesh",
+        "last_name": "",
+        "email": "rakesh.kumar@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Sana",
+        "first_name": "Sana",
+        "last_name": "",
+        "email": "sana.khan@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Manoj",
+        "first_name": "Manoj",
+        "last_name": "",
+        "email": "manoj.verma@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Priya Sharma",
+        "first_name": "Priya",
+        "last_name": "Sharma",
+        "email": "priya.sharma@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Karthik",
+        "first_name": "Karthik",
+        "last_name": "",
+        "email": "karthik.reddy@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Shreya",
+        "first_name": "Shreya",
+        "last_name": "",
+        "email": "shreya.agarwal@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Akash",
+        "first_name": "Akash",
+        "last_name": "",
+        "email": "akash.malhotra@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Swati",
+        "first_name": "Swati",
+        "last_name": "",
+        "email": "swati.jain@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Rahul",
+        "first_name": "Rahul",
+        "last_name": "",
+        "email": "rahul.mehta@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Neha Kapoor",
+        "first_name": "Neha",
+        "last_name": "Kapoor",
+        "email": "neha.kapoor@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Vikram Singh",
+        "first_name": "Vikram",
+        "last_name": "Singh",
+        "email": "vikram.singh@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Arjun Bhagat",
+        "first_name": "Arjun",
+        "last_name": "Bhagat",
+        "email": "arjun.bhagat@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Aarav Patel",
+        "first_name": "Aarav",
+        "last_name": "Patel",
+        "email": "aarav.patel@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Ananya Gupta",
+        "first_name": "Ananya",
+        "last_name": "Gupta",
+        "email": "ananya.gupta@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Rohan Verma",
+        "first_name": "Rohan",
+        "last_name": "Verma",
+        "email": "rohan.verma@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Isha Reddy",
+        "first_name": "Isha",
+        "last_name": "Reddy",
+        "email": "isha.reddy@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Siddharth Iyer",
+        "first_name": "Siddharth",
+        "last_name": "Iyer",
+        "email": "siddharth.iyer@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Simran Kaur",
+        "first_name": "Simran",
+        "last_name": "Kaur",
+        "email": "simran.kaur@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Karan Mehta",
+        "first_name": "Karan",
+        "last_name": "Mehta",
+        "email": "karan.mehta@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Nisha Patel",
+        "first_name": "Nisha",
+        "last_name": "Patel",
+        "email": "nisha.patel@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Amit Agarwal",
+        "first_name": "Amit",
+        "last_name": "Agarwal",
+        "email": "amit.agarwal@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Tanvi Joshi",
+        "first_name": "Tanvi",
+        "last_name": "Joshi",
+        "email": "tanvi.joshi@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Rajesh Kumar",
+        "first_name": "Rajesh",
+        "last_name": "Kumar",
+        "email": "rajesh.kumar@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Shruti Desai",
+        "first_name": "Shruti",
+        "last_name": "Desai",
+        "email": "shruti.desai@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Manish Singh",
+        "first_name": "Manish",
+        "last_name": "Singh",
+        "email": "manish.singh@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Ravi Reddy",
+        "first_name": "Ravi",
+        "last_name": "Reddy",
+        "email": "ravi.reddy@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Kavya Rao",
+        "first_name": "Kavya",
+        "last_name": "Rao",
+        "email": "kavya.rao@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Sanya Mishra",
+        "first_name": "Sanya",
+        "last_name": "Mishra",
+        "email": "sanya.mishra@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Harshit Mehta",
+        "first_name": "Harshit",
+        "last_name": "Mehta",
+        "email": "harshit.mehta@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Pooja Nair",
+        "first_name": "Pooja",
+        "last_name": "Nair",
+        "email": "pooja.nair@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Abhishek Yadav",
+        "first_name": "Abhishek",
+        "last_name": "Yadav",
+        "email": "abhishek.yadav@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Ritika Soni",
+        "first_name": "Ritika",
+        "last_name": "Soni",
+        "email": "ritika.soni@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Prateek Sharma",
+        "first_name": "Prateek",
+        "last_name": "Sharma",
+        "email": "prateek.sharma@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Ayesha Khan",
+        "first_name": "Ayesha",
+        "last_name": "Khan",
+        "email": "ayesha.khan@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Vikas Gupta",
+        "first_name": "Vikas",
+        "last_name": "Gupta",
+        "email": "vikas.gupta@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Madhavi Iyer",
+        "first_name": "Madhavi",
+        "last_name": "Iyer",
+        "email": "madhavi.iyer@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Sanjay Verma",
+        "first_name": "Sanjay",
+        "last_name": "Verma",
+        "email": "sanjay.verma@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Tanya Sharma",
+        "first_name": "Tanya",
+        "last_name": "Sharma",
+        "email": "tanya.sharma@example.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Punith",
+        "first_name": "Punith",
+        "last_name": "",
+        "email": "punith18072002@gmail.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Rajit",
+        "first_name": "Rajit",
+        "last_name": "",
+        "email": "rajitkumar1974@gmail.com",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "Rajith",
+        "first_name": "Rajith",
+        "last_name": "",
+        "email": "rajit@axonlabs.in",
+        "type": "person",
+        "groups": []
+      },
+      {
+        "display_name": "HR Team",
+        "first_name": "HR",
+        "last_name": "Team",
+        "email": "hr.team@example.com",
+        "type": "team",
+        "groups": ["hr", "human resources", "hr team"]
+      },
+      {
+        "display_name": "Finance Team",
+        "first_name": "Finance",
+        "last_name": "Team",
+        "email": "finance.team@example.com",
+        "type": "team",
+        "groups": ["finance", "financial", "finance team"]
+      },
+      {
+        "display_name": "Product Team",
+        "first_name": "Product",
+        "last_name": "Team",
+        "email": "product.team@example.com",
+        "type": "team",
+        "groups": ["product", "product team"]
+      },
+      {
+        "display_name": "Sales Team",
+        "first_name": "Sales",
+        "last_name": "Team",
+        "email": "sales.team@example.com",
+        "type": "team",
+        "groups": ["sales", "sales team", "sales leadership"]
+      },
+      {
+        "display_name": "Support Team",
+        "first_name": "Support",
+        "last_name": "Team",
+        "email": "support.team@example.com",
+        "type": "team",
+        "groups": ["support", "support team"]
+      },
+      {
+        "display_name": "Engineering Team",
+        "first_name": "Engineering",
+        "last_name": "Team",
+        "email": "engineering.team@example.com",
+        "type": "team",
+        "groups": ["engineering", "eng", "engineering team"]
+      },
+      {
+        "display_name": "Development Team",
+        "first_name": "Development",
+        "last_name": "Team",
+        "email": "development.team@example.com",
+        "type": "team",
+        "groups": ["development", "dev", "development team", "dev team"]
+      },
+      {
+        "display_name": "Legal Team",
+        "first_name": "Legal",
+        "last_name": "Team",
+        "email": "legal.team@example.com",
+        "type": "team",
+        "groups": ["legal", "legal team"]
+      },
+      {
+        "display_name": "Client Team",
+        "first_name": "Client",
+        "last_name": "Team",
+        "email": "client.team@example.com",
+        "type": "team",
+        "groups": ["client", "client team", "clients"]
+      },
+      {
+        "display_name": "Growth Team",
+        "first_name": "Growth",
+        "last_name": "Team",
+        "email": "growth.team@example.com",
+        "type": "team",
+        "groups": ["growth", "growth team"]
+      },
+      {
+        "display_name": "Design Team",
+        "first_name": "Design",
+        "last_name": "Team",
+        "email": "design.team@example.com",
+        "type": "team",
+        "groups": ["design", "designer", "design team"]
+      },
+      {
+        "display_name": "Marketing Team",
+        "first_name": "Marketing",
+        "last_name": "Team",
+        "email": "marketing.team@example.com",
+        "type": "team",
+        "groups": ["marketing", "marketing team"]
+      },
+      {
+        "display_name": "Executive Team",
+        "first_name": "Executive",
+        "last_name": "Team",
+        "email": "executive.team@example.com",
+        "type": "team",
+        "groups": ["executive", "exec", "executive team", "exec team"]
+      },
+      {
+        "display_name": "All Hands",
+        "first_name": "All",
+        "last_name": "Hands",
+        "email": "all-hands@example.com",
+        "type": "team",
+        "groups": ["all hands", "all-hands", "everyone", "company"]
+      }
+    ],
+    "aliases": {
+      "rahul mehta": "Rahul",
+      "rahul": "Rahul",
+      "john doe": "John",
+      "john": "John",
+      "neha kapoor": "Neha Kapoor",
+      "neha": "Neha Kapoor",
+      "priya sharma": "Priya Sharma",
+      "priya": "Priya Sharma",
+      "karthik reddy": "Karthik",
+      "karthik": "Karthik",
+      "manoj verma": "Manoj",
+      "manoj": "Manoj",
+      "vikram singh": "Vikram Singh",
+      "vikram": "Vikram Singh",
+      "anita sharma": "Anita",
+      "anita": "Anita",
+      "rakesh kumar": "Rakesh",
+      "rakesh": "Rakesh",
+      "sana khan": "Sana",
+      "sana": "Sana",
+      "shreya agarwal": "Shreya",
+      "shreya": "Shreya",
+      "akash malhotra": "Akash",
+      "akash": "Akash",
+      "swati jain": "Swati",
+      "swati": "Swati",
+      "arjun bhagat": "Arjun Bhagat",
+      "arjun": "Arjun Bhagat"
+    }
+  }
+}

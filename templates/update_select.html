@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Select Meeting to Update{% endblock %}
+
+{% block messages %}
+{% if original_sentence %}
+<div class="message user">
+    <div class="message-bubble">{{ original_sentence }}</div>
+</div>
+{% endif %}
+
+<div class="message bot">
+    <span class="message-icon">🔄</span>
+    <div class="message-bubble">
+        <h3>Select Meeting to Update</h3>
+        <p>Multiple meetings found. Please select one to update:</p>
+        
+        {% if events %}
+        <div style="margin-top: 15px;">
+            {% for event in events %}
+            <div class="event-details" style="margin-bottom: 15px; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                <div style="margin-bottom: 8px;">
+                    <strong style="font-size: 16px;">{{ event.summary }}</strong>
+                </div>
+                {% if event.start %}
+                <div style="margin-bottom: 5px;">
+                    <span class="label">🕐</span> {{ event.start }}{% if event.end %} - {{ event.end }}{% endif %}
+                </div>
+                {% endif %}
+                {% if event.location %}
+                <div style="margin-bottom: 5px;">
+                    <span class="label">📍</span> {{ event.location }}
+                </div>
+                {% endif %}
+                {% if event.attendees %}
+                <div style="margin-bottom: 5px;">
+                    <span class="label">👥</span> {{ event.attendees }}
+                </div>
+                {% endif %}
+                {% if event.description %}
+                <div style="margin-bottom: 5px; color: #666; font-size: 13px;">
+                    <span class="label">📝</span> {{ event.description }}
+                </div>
+                {% endif %}
+                <div style="margin-top: 12px;">
+                    <a href="/update_event/{{ event.id }}" style="color: #4285f4; font-weight: 500;">✏️ Update This Meeting</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <div class="quick-actions" style="margin-top: 20px;">
+            <button class="quick-action-btn" onclick="window.location.href='/'">🏠 Back to Home</button>
+        </div>
+    </div>
+</div>
+{% endblock %}

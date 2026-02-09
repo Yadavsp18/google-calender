@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Authentication Required{% endblock %}
+
+{% block messages %}
+<div class="message bot">
+    <span class="message-icon">🔐</span>
+    <div class="message-bubble">
+        <h3>Connect Your Google Calendar</h3>
+        <p>To create, update, or cancel meetings using natural language, you need to authenticate with your Google Calendar account.</p>
+        
+        <div class="examples-section">
+            <h4>✨ What you'll be able to do:</h4>
+            <ul>
+                <li>Create meetings with natural language</li>
+                <li>Update meeting times and details</li>
+                <li>Cancel meetings</li>
+                <li>View upcoming events</li>
+                <li>Automatically generate Google Meet links</li>
+            </ul>
+        </div>
+        
+        <a href="/authorize" class="quick-action-btn" style="background: #4285f4; color: white; border: none; margin-top: 15px; display: inline-block;">
+            🔗 Connect with Google
+        </a>
+        
+        <p style="color: #666; font-size: 13px; margin-top: 15px;">
+            You'll be redirected to Google to grant access to your calendar.<br>
+            Your credentials are stored securely.
+        </p>
+    </div>
+</div>
+{% endblock %}

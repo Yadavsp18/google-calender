@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Events - Google Calendar Meeting Creator{% endblock %}
+
+{% block messages %}
+<div class="message bot">
+    <span class="message-icon">📅</span>
+    <div class="message-bubble">
+        <h3>Your Upcoming Events</h3>
+        
+        {% if events %}
+        <div style="margin-top: 15px;">
+            {% for event in events %}
+            <div class="event-details">
+                <div><strong>{{ event.summary }}</strong></div>
+                <div><span class="label">🕐 {{ event.start }}</span></div>
+                {% if event.description %}
+                <div><span class="label">📝 {{ event.description }}</span></div>
+                {% endif %}
+                <div style="margin-top: 10px;">
+                    <a href="/update_event/{{ event.id }}" style="color: #4285f4; margin-right: 15px;">✏️ Update</a>
+                    <a href="/delete_event/{{ event.id }}" style="color: #dc3545;">🗑️ Delete</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>No upcoming events found.</p>
+        {% endif %}
+        
+        <div class="quick-actions" style="margin-top: 15px;">
+            <button class="quick-action-btn" onclick="window.location.href='/'">🏠 Back to Home</button>
+        </div>
+    </div>
+</div>
+{% endblock %}

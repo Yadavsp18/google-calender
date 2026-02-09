@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Google Calendar Meeting Assistant{% endblock %}
+
+{% block messages %}
+{% if chat_message %}
+<script>
+    // Pass chat message to JavaScript
+    document.addEventListener('DOMContentLoaded', function() {
+        const chatMessageData = document.getElementById('chatMessageData');
+        if (chatMessageData) {
+            chatMessageData.dataset.message = '{{ chat_message | tojson }}';
+        }
+    });
+</script>
+{% endif %}
+
+{% if authenticated %}
+{# Server-side chat history is not needed anymore since we use localStorage #}
+{# The base.html JavaScript will load chats from localStorage #}
+{% else %}
+<div class="message bot">
+    <span class="message-icon">🔐</span>
+    <div class="message-bubble">
+        <h3>Authentication Required</h3>
+        <p>Please connect your Google Calendar to use the meeting assistant.</p>
+        <a href="/authorize" class="quick-action-btn" style="background: #4285f4; color: white; border: none;">🔗 Connect Google Calendar</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

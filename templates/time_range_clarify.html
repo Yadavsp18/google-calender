@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta id="original-sentence" data-original-sentence="{{ original_sentence }}">
+    <meta id="drive-file-id" data-drive-file-id="{{ drive_file_id }}">
+    <meta id="drive-file-name" data-drive-file-name="{{ drive_file_name }}">
+    <meta id="drive-file-url" data-drive-file-url="{{ drive_file_url }}">
+    <title>{{ title }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+        .icon {
+            font-size: 60px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        .message {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .time-range {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        .options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .option-btn {
+            padding: 12px 24px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .option-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+        .cancel-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: #f5f5f5;
+            color: #666;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.3s ease;
+        }
+        .cancel-btn:hover {
+            background: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">{{ icon }}</div>
+        <h1>{{ title }}</h1>
+        <p class="message">You specified a time range <strong>{{ time_range }}</strong>. What time would you like to schedule the meeting?</p>
+        
+        <div class="time-range">{{ time_range }}</div>
+        
+        <div class="options">
+            {% for option in time_options %}
+            <button class="option-btn" onclick="selectTime('{{ option }}')">{{ option }}</button>
+            {% endfor %}
+        </div>
+        
+        <button class="cancel-btn" onclick="cancelClarification()">Cancel</button>
+    </div>
+    
+    <script>
+        const originalSentence = document.getElementById('original-sentence').getAttribute('data-original-sentence');
+        const driveFileId = document.getElementById('drive-file-id').getAttribute('data-drive-file-id');
+        const driveFileName = document.getElementById('drive-file-name').getAttribute('data-drive-file-name');
+        const driveFileUrl = document.getElementById('drive-file-url').getAttribute('data-drive-file-url');
+        
+        function selectTime(selectedTime) {
+            // Replace the time range in the original sentence with the selected time
+            let newSentence = originalSentence;
+            
+            // Try to find and replace time patterns
+            const timePatterns = [
+                /between\s+\d{1,2}\s*(?:am|pm)?\s*(?:and|to|-)\s*\d{1,2}\s*(?:am|pm)/gi,
+                /\d{1,2}\s*(?:am|pm)?\s*[-–]\s*\d{1,2}\s*(?:am|pm)/gi,
+                /from\s+\d{1,2}\s*(?:am|pm)?\s*to\s+\d{1,2}\s*(?:am|pm)/gi
+            ];
+            
+            for (const pattern of timePatterns) {
+                if (pattern.test(newSentence)) {
+                    newSentence = newSentence.replace(pattern, selectedTime);
+                    break;
+                }
+            }
+            
+            if (newSentence === originalSentence) {
+                // If no pattern matched, append the time
+                newSentence = newSentence + ' at ' + selectedTime;
+            }
+            
+            // Send the updated sentence back to the server
+            submitClarification(newSentence);
+        }
+        
+        function cancelClarification() {
+            submitClarification(originalSentence + ' [cancelled]');
+        }
+        
+        function submitClarification(sentence) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/nlp_create';
+            
+            const sentenceInput = document.createElement('input');
+            sentenceInput.type = 'hidden';
+            sentenceInput.name = 'sentence';
+            sentenceInput.value = sentence;
+            form.appendChild(sentenceInput);
+            
+            // Add drive file fields if present
+            if (driveFileId) {
+                const driveFileIdInput = document.createElement('input');
+                driveFileIdInput.type = 'hidden';
+                driveFileIdInput.name = 'drive_file_id';
+                driveFileIdInput.value = driveFileId;
+                form.appendChild(driveFileIdInput);
+                
+                const driveFileNameInput = document.createElement('input');
+                driveFileNameInput.type = 'hidden';
+                driveFileNameInput.name = 'drive_file_name';
+                driveFileNameInput.value = driveFileName;
+                form.appendChild(driveFileNameInput);
+                
+                const driveFileUrlInput = document.createElement('input');
+                driveFileUrlInput.type = 'hidden';
+                driveFileUrlInput.name = 'drive_file_url';
+                driveFileUrlInput.value = driveFileUrl;
+                form.appendChild(driveFileUrlInput);
+            }
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+    </script>
+</body>
+</html>

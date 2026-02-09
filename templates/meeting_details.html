@@ -1,0 +1,178 @@
+<style>
+    .event-details {
+        background: #2a2b32;
+        padding: 12px;
+        border-radius: 10px;
+        margin-top: 10px;
+        font-size: 14px;
+    }
+    .message.bot.success .message-bubble {
+        background: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+    }
+    .message.bot.success .message-bubble h3 {
+        color: #155724;
+    }
+    .message.bot.success .message-bubble .label {
+        color: #155724;
+    }
+    .message.bot.success .message-bubble a {
+        color: #155724;
+    }
+    .message.bot.success .message-bubble .quick-action-btn {
+        background: #155724;
+        color: white;
+    }
+    .message.bot.success .message-bubble .action-buttons a {
+        background: #155724;
+        color: white;
+        border-color: #155724;
+    }
+    .message.bot.success .message-bubble .action-buttons a.secondary {
+        background: transparent;
+        color: #155724;
+    }
+    .quick-action-btn {
+        background: #40414f;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        margin-right: 8px;
+        margin-top: 8px;
+    }
+    .quick-action-btn:hover {
+        background: #4d4d4f;
+    }
+    .action-buttons {
+        margin-top: 12px;
+        margin-bottom: 12px;
+    }
+    .action-buttons a {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 14px;
+        margin-right: 8px;
+        font-weight: 500;
+    }
+    .action-buttons a.primary {
+        background: #1a73e8;
+        color: white;
+        border: 1px solid #1a73e8;
+    }
+    .action-buttons a.secondary {
+        background: transparent;
+        color: white;
+        border: 1px solid #4d4d4f;
+    }
+    .event-details .label {
+        color: #9ca3af;
+        font-weight: 500;
+    }
+    .event-details .value {
+        color: white;
+    }
+    .event-details a {
+        color: #1a73e8;
+        text-decoration: none;
+    }
+    .event-details a:hover {
+        text-decoration: underline;
+    }
+</style>
+
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block messages %}
+<div class="message bot success">
+    {% if icon %}
+    <span class="message-icon">{{ icon }}</span>
+    {% endif %}
+    <div class="message-bubble">
+        <h3 style="margin: 0 0 10px;">{{ title }}</h3>
+        <p>{{ message }}</p>
+        
+        {% if show_details %}
+        <div class="event-details">
+            {% if summary %}
+            <div><span class="label">Title:</span> <span class="value">{{ summary }}</span></div>
+            {% endif %}
+            
+            {% if start %}
+            <div><span class="label">📅 Start:</span> <span class="value">{{ start }}</span></div>
+            {% endif %}
+            
+            {% if end %}
+            <div><span class="label">⏰ End:</span> <span class="value">{{ end }}</span></div>
+            {% endif %}
+            
+            {% if location %}
+            <div><span class="label">📍 Location:</span> <span class="value">{{ location }}</span></div>
+            {% endif %}
+            
+            {% if attendees %}
+            <div><span class="label">👥 Attendees:</span> <span class="value">{{ attendees }}</span></div>
+            {% endif %}
+            
+            {% if attachments %}
+            <div class="label">📎 Attachments:</div>
+            {% for attachment in attachments %}
+            <div style="margin-left: 10px; margin-bottom: 8px;">
+                <span class="value">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                        <path d="M12 2L2 19h7l3-5.5L15 19h7L12 2z"></path>
+                    </svg>
+                    {{ attachment.title }}
+                </span>
+                <br>
+                <span class="value" style="margin-left: 24px;">
+                    <a href="{{ attachment.fileUrl }}" target="_blank" style="color: #1a73e8; display: inline-flex; align-items: center; gap: 4px; font-size: 13px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                        Open in Google Drive
+                    </a>
+                </span>
+            </div>
+            {% endfor %}
+            {% endif %}
+            
+            {% if hangout_link %}
+            <div><span class="label">🔗 Google Meet:</span> <span class="value"><a href="{{ hangout_link }}" target="_blank">Join Meeting</a></span></div>
+            {% endif %}
+            
+            {% if html_link %}
+            <div><span class="label">📆 Calendar:</span> <span class="value"><a href="{{ html_link }}" target="_blank">View in Google Calendar</a></span></div>
+            {% endif %}
+        </div>
+        
+        <div class="action-buttons">
+            {% if hangout_link %}
+            <a href="{{ hangout_link }}" target="_blank" class="primary">🎥 Join Meeting</a>
+            {% endif %}
+            {% if html_link %}
+            <a href="{{ html_link }}" target="_blank" class="secondary">📅 View in Calendar</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <div class="quick-actions">
+            {% if action == 'update' %}
+            <button class="quick-action-btn" onclick="window.location.href='/'">🔄 Update Another Meeting</button>
+            {% else %}
+            <button class="quick-action-btn" onclick="window.location.href='/'">🏠 Create Another Meeting</button>
+            {% endif %}
+            <button class="quick-action-btn" onclick="window.location.href='/events'">📋 View All Events</button>
+        </div>
+    </div>
+</div>
+{% endblock %}

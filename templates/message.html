@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block messages %}
+{% if show_user_message %}
+<div class="message user">
+    <div class="message-bubble">{{ user_message }}</div>
+</div>
+{% endif %}
+
+<div class="message bot {{ message_type }}">
+    {% if icon %}
+    <span class="message-icon">{{ icon }}</span>
+    {% endif %}
+    <div class="message-bubble">
+        <h3 style="margin: 0 0 10px;">{{ title }}</h3>
+        <p>{{ message }}</p>
+        
+        {% if details %}
+        <div class="event-details">
+            {{ details|safe }}
+        </div>
+        {% endif %}
+        
+        <div class="quick-actions" style="margin-top: 15px;">
+            <button class="quick-action-btn" onclick="window.location.href='/'">🏠 Back to Home</button>
+            {% if show_events %}
+            <button class="quick-action-btn" onclick="window.location.href='/events?_t=' + Date.now()">📅 View Events</button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

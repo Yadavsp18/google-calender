@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}Google Calendar Meeting Creator{% endblock %}</title>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script type="text/javascript" src="https://www.gstatic.com/epub/js/drive/v2/realtime.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        
+        /* Custom scrollbar styling - full height on right */
+        html, body {
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #2a2b32;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #4d4d4f;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6d6d6f;
+        }
+        
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            margin: 0; 
+            padding: 0;
+            background: #343541;
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+        }
+        
+        .sidebar-header {
+            padding: 0 20px;
+            height: 70px;
+            background: #2a2b32;
+            color: white;
+            border-bottom: 1px solid #4d4d4f;
+            display: flex;
+            align-items: center;
+        }
+        
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        
+        .sidebar-footer {
+            padding: 15px;
+            border-top: 1px solid #4d4d4f;
+        }
+        
+        .date-item {
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 5px;
+            color: #aaa;
+        }
+        
+        .date-item:hover {
+            background: #2a2b32;
+        }
+        
+        .date-item.active {
+            background: #2a2b32;
+            border-left: 3px solid #8e8ea0;
+            color: white;
+        }
+        
+        .date-day-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .date-full {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 2px;
+        }
+        
+        .clear-history-btn {
+            width: 100%;
+            padding: 10px;
+            background: transparent;
+            border: 1px solid #4d4d4f;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #aaa;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .clear-history-btn:hover {
+            background: #2a2b32;
+            color: #fff;
+            border-color: #666;
+        }
+        
+        .loading-dates {
+            text-align: center;
+            padding: 20px;
+            color: #8e8ea0;
+            font-size: 14px;
+        }
+        
+        .no-history {
+            text-align: center;
+            padding: 30px 20px;
+            color: #8e8ea0;
+            font-size: 14px;
+        }
+        
+        /* Main layout container */
+        .main-wrapper {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+        }
+        
+        /* Chat container - fills remaining space */
+        .chat-container-wrapper {
+            flex: 1;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 0;
+        }
+        
+        .chat-container { 
+            width: 100%;
+            height: 100%;
+            background: #343541;
+            border-radius: 0;
+            box-shadow: none;
+            overflow: hidden;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-header {
+            background: #343541;
+            color: white;
+            padding: 0 30px;
+            height: 70px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: left;
+            flex-shrink: 0;
+            border-bottom: 1px solid #4d4d4f;
+        }
+        
+        .chat-header h1 { 
+            margin: 0; 
+            font-size: 18px; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            font-weight: 600; 
+        }
+        
+        .chat-header p { 
+            margin: 2px 0 0 34px;
+            opacity: 0.7; 
+            font-size: 13px; 
+        }
+        
+        /* Chat history sidebar - 30% width */
+        .sidebar {
+            width: 30%;
+            min-width: 280px;
+            max-width: 400px;
+            height: 100vh;
+            background: #202123;
+            border-left: 1px solid #4d4d4f;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-header {
+            background: #343541;
+            color: white;
+            padding: 0 30px;
+            height: 70px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: left;
+            flex-shrink: 0;
+            border-bottom: 1px solid #4d4d4f;
+        }
+        
+        .chat-header h1 { 
+            margin: 0; 
+            font-size: 18px; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            font-weight: 600; 
+        }
+        
+        .chat-header p { 
+            margin: 2px 0 0 34px;
+            opacity: 0.7; 
+            font-size: 13px; 
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 20px;
+            background: #343541;
+        }
+        
+        .chat-date-label {
+            text-align: center;
+            color: #8e8ea0;
+            font-size: 12px;
+            margin: 20px 0 10px;
+            padding: 5px;
+            border-bottom: 1px solid #40414f;
+        }
+        
+        .message {
+            display: flex;
+            margin: 10px 0;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message.user {
+            justify-content: flex-end;
+        }
+        .message.bot {
+            justify-content: flex-start;
+        }
+        
+        .message-bubble {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 15px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+        
+        .message.user .message-bubble {
+            background: #5436da;
+            color: white;
+            border-bottom-right-radius: 4px;
+            margin-left: auto;
+        }
+        
+        .message.bot .message-bubble {
+            background: #40414f;
+            color: white;
+            border: 1px solid #4d4d4f;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .message.bot.error .message-bubble {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        
+        .message.bot.warning .message-bubble {
+            background: #fff3cd;
+            border-color: #ffeeba;
+            color: #856404;
+        }
+        
+        .message.bot.success .message-bubble {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        
+        /* Bot avatar */
+        .bot-avatar {
+            width: 36px;
+            height: 36px;
+            background: #40414f;
+            color: white;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 12px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        
+        .chat-input-area {
+            padding: 15px 0;
+            background: #343541;
+            border-top: 1px solid #4d4d4f;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        /* Single unified input box like ChatGPT */
+        .chat-input-container {
+            display: flex;
+            align-items: center;
+            background: #40414f;
+            border: 1px solid #4d4d4f;
+            border-radius: 12px;
+            padding: 4px 6px;
+            gap: 0;
+            margin: 0 auto;
+            width: 85%;
+            max-width: 800px;
+        }
+
+        .chat-input-container:focus-within {
+            border-color: #8e8ea0;
+        }
+
+        .add-icon {
+            padding: 10px 12px;
+            cursor: pointer;
+            color: #8e8ea0;
+            transition: color 0.2s ease;
+            display: flex;
+            align-items: center;
+            border-radius: 8px;
+        }
+
+        .add-icon:hover {
+            color: white;
+            background: #2a2b32;
+        }
+
+        .chat-input-container input[type="text"] {
+            flex: 1;
+            padding: 12px 10px;
+            border: none;
+            font-size: 16px;
+            outline: none;
+            background: transparent;
+            color: white;
+        }
+
+        .chat-input-container button {
+            padding: 10px 14px;
+            background: transparent;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-input-container button:hover {
+            background: #2a2b32;
+        }
+
+        .chat-input-container button:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        
+        .file-attachment {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: #40414f;
+            border-radius: 8px;
+            margin: 8px;
+            color: white;
+            font-size: 14px;
+        }
+        
+        .file-attachment svg {
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        
+        .file-attachment span {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .file-attachment.sent-file {
+            background: #5436da;
+            margin: 10px 0;
+        }
+        
+        .file-attachment.sent-file svg {
+            color: white;
+        }
+
+        .add-file-dropdown {
+            position: absolute;
+            bottom: 100%;
+            left: 20px;
+            background: #2a2b32;
+            border: 1px solid #4d4d4f;
+            border-radius: 8px;
+            min-width: 180px;
+            padding: 8px 0;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .add-file-dropdown.show {
+            display: block;
+        }
+
+        .add-file-dropdown-item {
+            padding: 10px 16px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            transition: background 0.2s ease;
+        }
+
+        .add-file-dropdown-item:hover {
+            background: #40414f;
+        }
+
+        .add-file-dropdown-item svg {
+            width: 18px;
+            height: 18px;
+        }
+        
+        .quick-action-btn {
+            padding: 8px 14px;
+            background: #40414f;
+            color: #fff;
+            border: 1px solid #4d4d4f;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .quick-action-btn:hover {
+            background: #2a2b32;
+            border-color: #8e8ea0;
+        }
+        
+        .event-details {
+            background: #2a2b32;
+            padding: 12px;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .event-details strong {
+            color: #10a37f;
+        }
+        
+        .event-details .label {
+            color: #aaa;
+            font-size: 12px;
+        }
+        
+        .event-details .value {
+            font-weight: 600;
+            color: white;
+        }
+        
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+        }
+        
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: #666;
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: typing 1.4s infinite;
+        }
+        
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
+        }
+        
+        .examples-section {
+            background: #2a2b32;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 1px solid #4d4d4f;
+        }
+        
+        .examples-section h4 {
+            margin: 0 0 8px;
+            color: #8e8ea0;
+            font-size: 14px;
+        }
+        
+        .examples-section ul {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 13px;
+            color: #8e8ea0;
+        }
+        
+        .examples-section li {
+            margin: 4px 0;
+        }
+        
+        .examples-section code {
+            background: #40414f;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: #8e8ea0;
+        }
+        
+        .auth-btn {
+            padding: 8px 16px;
+            background: white;
+            color: #40414f;
+            border: none;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .auth-btn:hover {
+            background: #f0f0f0;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .action-buttons a, .action-buttons button {
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+        
+        .action-buttons .primary {
+            background: #5436da;
+            color: white;
+        }
+        
+        .action-buttons .secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .action-buttons .danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .action-buttons a:hover, .action-buttons button:hover {
+            transform: translateY(-2px);
+            opacity: 0.9;
+        }
+        
+        /* Current date label */
+        .current-date-label {
+            text-align: center;
+            margin: 15px 0;
+            padding: 10px;
+            background: #40414f;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% include 'sidebar.html' %}
+    
+    <div class="main-wrapper">
+        <div class="chat-container-wrapper">
+            <div class="chat-container">
+                <div class="chat-header">
+                    <h1>
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        Google Calendar Meeting Creator
+                    </h1>
+                    <p>Chat with me to create, manage, or cancel meetings</p>
+                </div>
+                <div class="chat-messages" id="chatMessages">
+                    {% block messages %}{% endblock %}
+                </div>
+                <!-- Hidden element for chat messages from server -->
+                <div id="chatMessageData" data-message=""></div>
+                <div class="chat-input-area">
+                    <div class="chat-input-container">
+                        <span class="add-icon" onclick="toggleAddFileDropdown()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </span>
+                        <div class="add-file-dropdown" id="addFileDropdown">
+                            <div class="add-file-dropdown-item" onclick="selectFileSource('system files')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                                </svg>
+                                System Files
+                            </div>
+                            <div class="add-file-dropdown-item" onclick="selectFileSource('google drive')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2L2 19h7l3-5.5L15 19h7L12 2z"></path>
+                                </svg>
+                                Google Drive (Picker)
+                            </div>
+                        </div>
+                        <input type="text" id="chatInput" placeholder="Type your message here..." autocomplete="off">
+                        <button id="sendBtn" onclick="sendMessage()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const chatInput = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const chatMessages = document.getElementById('chatMessages');
+        const STORAGE_KEY = 'google_calendar_chat_history';
+        
+        // Toggle add file dropdown
+        function toggleAddFileDropdown() {
+            const dropdown = document.getElementById('addFileDropdown');
+            dropdown.classList.toggle('show');
+        }
+        
+        // Select file source
+        function selectFileSource(source) {
+            const dropdown = document.getElementById('addFileDropdown');
+            dropdown.classList.remove('show');
+            
+            if (source === 'system files') {
+                // Open system file picker
+                const fileInput = document.getElementById('systemFileInput');
+                if (fileInput) {
+                    fileInput.click();
+                } else {
+                    // Create hidden file input if it doesn't exist
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.id = 'systemFileInput';
+                    input.style.display = 'none';
+                    document.body.appendChild(input);
+                    input.click();
+                    
+                    // Handle file selection
+                    input.addEventListener('change', function(e) {
+                        console.log('File input change event fired');
+                        console.log('Files:', this.files.length);
+                        if (this.files.length > 0) {
+                            console.log('Selected file:', this.files[0].name);
+                            addFile(this.files[0]);
+                        }
+                    });
+                }
+            } else if (source === 'google drive') {
+                // Open Google Drive Picker
+                openGoogleDrivePicker();
+            }
+        }
+        
+        // Google Drive Picker Configuration
+        const GOOGLE_CLIENT_ID = '926110940194-9mp8crham7ordce7rvs9rqm9rppgb82u.apps.googleusercontent.com';
+        const DEVELOPER_KEY = '{{ DEVELOPER_KEY }}'; // API key from Google Cloud Console
+        
+        // Google Drive Picker
+        function openGoogleDrivePicker() {
+            // First, get the access token from the server
+            fetch('/api/auth/token')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error('Error getting token:', data.error);
+                        alert('Please log in first to use Google Drive picker.');
+                        return;
+                    }
+                    
+                    const accessToken = data.access_token;
+                    if (!accessToken) {
+                        console.error('No access token received');
+                        return;
+                    }
+                    
+                    // Create and show the picker
+                    showGoogleDrivePicker(accessToken);
+                })
+                .catch(error => {
+                    console.error('Error fetching token:', error);
+                });
+        }
+        
+        function showGoogleDrivePicker(accessToken) {
+            // Check if google.picker is available
+            if (typeof google === 'undefined' || typeof google.picker === 'undefined') {
+                console.warn('Google Picker API not loaded yet, loading now...');
+                // Load the picker API dynamically
+                loadGooglePickerAPI(accessToken);
+                return;
+            }
+            
+            createPickerWithToken(accessToken);
+        }
+        
+        function loadGooglePickerAPI(accessToken) {
+            // Store the access token for when the picker loads
+            window.pendingPickerToken = accessToken;
+            
+            // Check if the script is already being loaded
+            if (window.pickerAPILoading) {
+                console.log('Picker API is already being loaded');
+                return;
+            }
+            window.pickerAPILoading = true;
+            
+            const script = document.createElement('script');
+            script.src = 'https://apis.google.com/js/api.js';
+            script.onload = function() {
+                window.pickerAPILoading = false;
+                console.log('Google API script loaded');
+                // Now load the picker
+                gapi.load('picker', {
+                    callback: function() {
+                        console.log('Picker API loaded');
+                        if (window.pendingPickerToken) {
+                            createPickerWithToken(window.pendingPickerToken);
+                            window.pendingPickerToken = null;
+                        }
+                    },
+                    onerror: function() {
+                        console.error('Failed to load picker API');
+                        window.pickerAPILoading = false;
+                        fallbackToUrlPrompt();
+                    }
+                });
+            };
+            script.onerror = function() {
+                window.pickerAPILoading = false;
+                console.error('Failed to load Google API script');
+                fallbackToUrlPrompt();
+            };
+            document.head.appendChild(script);
+        }
+        
+        function createPickerWithToken(accessToken) {
+            try {
+                if (typeof google === 'undefined' || typeof google.picker === 'undefined') {
+                    console.error('Google Picker API still not available');
+                    fallbackToUrlPrompt();
+                    return;
+                }
+                
+                const picker = new google.picker.PickerBuilder()
+                    .addView(google.picker.ViewId.DOCS)
+                    .addView(google.picker.ViewId.DOCUMENTS)
+                    .addView(google.picker.ViewId.FOLDERS)
+                    .setOAuthToken(accessToken)
+                    .setDeveloperKey(DEVELOPER_KEY)
+                    .setCallback(pickerCallback)
+                    .build();
+                
+                picker.setVisible(true);
+            } catch (e) {
+                console.error('Error creating picker:', e);
+                fallbackToUrlPrompt();
+            }
+        }
+        
+        function pickerCallback(data) {
+            if (data.action === google.picker.Action.PICKED) {
+                const doc = data.docs[0];
+                console.log('Google Drive file picked:', doc);
+                
+                const driveFile = {
+                    name: doc.name || 'Google Drive File',
+                    type: 'drive-link',
+                    content: doc.url || doc.webViewLink,
+                    fileId: doc.id
+                };
+                
+                addFile(driveFile);
+            }
+        }
+        
+        function fallbackToUrlPrompt() {
+            // Fallback to URL prompt if picker fails
+            const driveUrl = prompt('Enter Google Drive file URL:');
+            if (driveUrl && driveUrl.trim()) {
+                const fakeFile = {
+                    name: 'Google Drive File',
+                    type: 'drive-link',
+                    content: driveUrl.trim()
+                };
+                addFile(fakeFile);
+            }
+        }
+        
+        // Add file to chat
+        function addFile(file) {
+            console.log('addFile called with:', file);
+            
+            // Find the chat input container
+            const chatContainer = document.querySelector('.chat-input-container');
+            if (!chatContainer) {
+                console.error('Chat container not found');
+                return;
+            }
+            
+            if (file.type === 'drive-link') {
+                // Google Drive link
+                const fileDiv = document.createElement('div');
+                fileDiv.className = 'file-attachment';
+                fileDiv.innerHTML = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>${escapeHtml(file.name)}</span>
+                    <a href="${escapeHtml(file.content)}" target="_blank" style="margin-left: 8px; color: #10a37f;">Open</a>
+                `;
+                chatContainer.insertBefore(fileDiv, chatInput);
+                
+                // Store the file content for sending
+                window.pendingFile = file;
+            } else {
+                // System file - read content
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const fileDiv = document.createElement('div');
+                    fileDiv.className = 'file-attachment';
+                    fileDiv.innerHTML = `
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                        <span>${escapeHtml(file.name)}</span>
+                        <span style="margin-left: 8px; color: #8e8ea0;">(${(file.size / 1024).toFixed(1)} KB)</span>
+                    `;
+                    chatContainer.insertBefore(fileDiv, chatInput);
+                    
+                    // Store file for sending
+                    window.pendingFile = {
+                        name: file.name,
+                        type: file.type,
+                        content: e.target.result
+                    };
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('addFileDropdown');
+            const btn = document.querySelector('.add-icon');
+            if (!dropdown.contains(event.target) && !btn.contains(event.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+        
+        // Load chat history from localStorage
+        async function loadChatHistory() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            const localChats = saved ? JSON.parse(saved) : [];
+            
+            // Also load from server to get server-side messages (like delete responses)
+            try {
+                const response = await fetch('/api/chat/today');
+                if (response.ok) {
+                    const data = await response.json();
+                    const serverChats = data.chats || [];
+                    
+                    // Merge local and server chats, avoiding duplicates
+                    const merged = [...localChats];
+                    const localIds = new Set(localChats.map(c => c.id || c.timestamp));
+                    
+                    serverChats.forEach(serverChat => {
+                        // Convert server chat format to local format
+                        const localId = serverChat.id || serverChat.timestamp;
+                        if (!localIds.has(localId)) {
+                            merged.push({
+                                id: serverChat.id,
+                                timestamp: serverChat.timestamp,
+                                userMessage: serverChat.user_message || '',
+                                botMessage: serverChat.bot_response || serverChat.bot_message || '',
+                                messageType: serverChat.message_type || 'info'
+                            });
+                        }
+                    });
+                    
+                    return merged;
+                }
+            } catch (e) {
+                console.error('Error loading server chat:', e);
+            }
+            
+            return localChats;
+        }
+        
+        // Save chat history to localStorage
+        function saveChatHistory(chats) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
+        }
+        
+        // Add a chat pair to history
+        async function addToHistory(userMessage, botMessage, messageType = 'info') {
+            const history = await loadChatHistory();
+            
+            const chatEntry = {
+                id: Date.now(),
+                timestamp: new Date().toISOString(),
+                userMessage,
+                botMessage,
+                messageType
+            };
+            
+            history.push(chatEntry);
+            
+            // Keep only last 100 chats
+            if (history.length > 100) {
+                history.shift();
+            }
+            
+            saveChatHistory(history);
+            
+            // Also save to server
+            try {
+                await fetch('/api/chat/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user_message: userMessage,
+                        bot_response: botMessage,
+                        message_type: messageType
+                    })
+                });
+            } catch (e) {
+                console.error('Error saving chat to server:', e);
+            }
+        }
+        
+        // Clear chat history
+        function clearChatHistory() {
+            localStorage.removeItem(STORAGE_KEY);
+        }
+        
+        // Render chat history
+        async function renderChatHistory() {
+            const history = await loadChatHistory();
+            history.forEach(chat => {
+                // Add user message
+                if (chat.userMessage) {
+                    const userDiv = document.createElement('div');
+                    userDiv.className = 'message user';
+                    userDiv.innerHTML = `<div class="message-bubble user-bubble"><p>${escapeHtml(chat.userMessage)}</p></div>`;
+                    chatMessages.appendChild(userDiv);
+                }
+                
+                // Add bot message
+                if (chat.botMessage) {
+                    const botDiv = document.createElement('div');
+                    botDiv.className = `message bot ${chat.messageType}`;
+                    botDiv.innerHTML = `<div class="bot-avatar"></div><div class="message-bubble bot-bubble">${chat.botMessage}</div>`;
+                    chatMessages.appendChild(botDiv);
+                }
+            });
+            scrollToBottom();
+        }
+        
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Auto-resize textarea behavior
+        chatInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function addMessage(text, isUser, icon = '', messageClass = '') {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${isUser ? 'user' : 'bot'} ${messageClass}`;
+            
+            let content = '';
+            if (isUser) {
+                content += `<div class="message-bubble user-bubble">${text}</div>`;
+            } else {
+                content += `<div class="bot-avatar"></div><div class="message-bubble bot-bubble">${text}</div>`;
+            }
+            
+            msgDiv.innerHTML = content;
+            chatMessages.appendChild(msgDiv);
+            scrollToBottom();
+        }
+        
+        function addMessageWithFiles(text, files, isUser, icon = '', messageClass = '') {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${isUser ? 'user' : 'bot'} ${messageClass}`;
+            
+            let content = '';
+            
+            if (isUser) {
+                // Show text
+                if (text) {
+                    content += `<div class="message-bubble user-bubble">${text}</div>`;
+                }
+                // Show attached files
+                if (files && files.length > 0) {
+                    content += `<div class="message-attached-files">`;
+                    files.forEach(file => {
+                        if (file.type === 'drive-link') {
+                            content += `
+                                <div class="attached-file-badge">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 2L2 19h7l3-5.5L15 19h7L12 2z"></path>
+                                    </svg>
+                                    <span>${file.content.substring(0, 30)}...</span>
+                                </div>
+                            `;
+                        } else {
+                            content += `
+                                <div class="attached-file-badge">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                    </svg>
+                                    <span>${file.name}</span>
+                                </div>
+                            `;
+                        }
+                    });
+                    content += `</div>`;
+                }
+            } else {
+                content += `<div class="bot-avatar"></div><div class="message-bubble bot-bubble">${text}</div>`;
+            }
+            
+            msgDiv.innerHTML = content;
+            chatMessages.appendChild(msgDiv);
+            scrollToBottom();
+        }
+        
+        function addTypingIndicator() {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message bot';
+            msgDiv.id = 'typingIndicator';
+            msgDiv.innerHTML = `
+                <div class="bot-avatar"></div>
+                <div class="message-bubble bot-bubble typing-indicator">
+                    <span></span><span></span><span></span>
+                </div>
+            `;
+            chatMessages.appendChild(msgDiv);
+            scrollToBottom();
+        }
+        
+        function removeTypingIndicator() {
+            const typing = document.getElementById('typingIndicator');
+            if (typing) typing.remove();
+        }
+        
+        function addQuickActions(actions) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message bot';
+            msgDiv.innerHTML = `
+                <div class="bot-avatar"></div>
+                <div class="message-bubble bot-bubble">
+                    <div class="quick-actions">
+                        ${actions.map(a => `<button class="quick-action-btn" onclick="sendQuickMessage('${a.replace(/'/g, "\\'")}')">${a}</button>`).join('')}
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(msgDiv);
+            scrollToBottom();
+        }
+        
+        function addExamples(examples) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message bot';
+            msgDiv.innerHTML = `
+                <div class="bot-avatar"></div>
+                <div class="message-bubble bot-bubble">
+                    <div class="examples-section">
+                        <h4>Try saying:</h4>
+                        <ul>
+                            ${examples.map(e => `<li><code>${e}</code></li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(msgDiv);
+            scrollToBottom();
+        }
+        
+        function addActionButtons(buttons) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message bot';
+            msgDiv.innerHTML = `
+                <div class="bot-avatar"></div>
+                <div class="message-bubble bot-bubble">
+                    <div class="action-buttons">
+                        ${buttons.map(b => `<${b.url ? 'a href="' + b.url + '"' : 'button onclick="' + b.onclick + '"'} class="${b.class}">${b.text}</${b.url ? 'a' : 'button'}>`).join('')}
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(msgDiv);
+            scrollToBottom();
+        }
+        
+        function sendQuickMessage(text) {
+            chatInput.value = text;
+            sendMessage();
+        }
+        
+        async function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text && !window.pendingFile) return;
+            
+            // Display user message with file attachment if present
+            let messageHtml = text;
+            if (window.pendingFile) {
+                const fileInfo = `<div class="file-attachment sent-file">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                    <span>${escapeHtml(window.pendingFile.name)}</span>
+                </div>`;
+                messageHtml = text + fileInfo;
+                
+                // Clear the pending file
+                const fileDiv = document.querySelector('.file-attachment:not(.sent-file)');
+                if (fileDiv) fileDiv.remove();
+                window.pendingFile = null;
+            }
+            
+            addMessage(messageHtml, true);
+            chatInput.value = '';
+            
+            sendBtn.disabled = true;
+            
+            // Show typing indicator
+            addTypingIndicator();
+            
+            // Check if it's an NLP route
+            if (text.toLowerCase().startsWith('create') || 
+                text.toLowerCase().startsWith('schedule') ||
+                text.toLowerCase().startsWith('meeting') ||
+                text.toLowerCase().startsWith('book') ||
+                text.toLowerCase().startsWith('add') ||
+                text.toLowerCase().startsWith('cancel') ||
+                text.toLowerCase().startsWith('delete') ||
+                text.toLowerCase().startsWith('update') ||
+                text.toLowerCase().startsWith('change') ||
+                text.toLowerCase().startsWith('move') ||
+                text.toLowerCase().startsWith('reschedule') ||
+                text.toLowerCase().startsWith('fix') ||
+                text.toLowerCase().startsWith('show') ||
+                text.toLowerCase().startsWith('list') ||
+                text.toLowerCase().startsWith('get') ||
+                text.toLowerCase().startsWith('events')) {
+                
+                // Submit to NLP endpoint
+                try {
+                    const formData = new FormData();
+                    formData.append('sentence', text);
+                    
+                    // Handle file upload to Google Drive
+                    let driveLink = '';
+                    let driveFileId = '';
+                    let driveFileName = '';
+                    
+                    if (window.pendingFile) {
+                        console.log('DEBUG: Processing file attachment');
+                        console.log('DEBUG: File name:', window.pendingFile.name);
+                        console.log('DEBUG: File type:', window.pendingFile.type);
+                        
+                        // Update pending file with processing status
+                        const fileInfoEl = document.querySelector('.file-attachment.sent-file span');
+                        if (fileInfoEl) fileInfoEl.textContent = window.pendingFile.name + ' (Processing...)';
+                        
+                        if (window.pendingFile.type === 'drive-link' && window.pendingFile.fileId) {
+                            // This is an existing Google Drive file - get its info
+                            console.log('DEBUG: Existing Google Drive file detected, fileId:', window.pendingFile.fileId);
+                            
+                            try {
+                                const fileInfoResponse = await fetch('/api/drive/file-info', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        fileId: window.pendingFile.fileId
+                                    })
+                                });
+                                
+                                if (fileInfoResponse.ok) {
+                                    const fileInfoData = await fileInfoResponse.json();
+                                    console.log('DEBUG: File info response:', fileInfoData);
+                                    
+                                    if (fileInfoData.success && fileInfoData.file) {
+                                        driveFileId = fileInfoData.file.id;
+                                        driveFileName = fileInfoData.file.name;
+                                        driveLink = fileInfoData.file.webViewLink || '';
+                                        
+                                        console.log('DEBUG: Drive file info retrieved:', driveFileName, driveFileId);
+                                        
+                                        // Update file display with link
+                                        if (fileInfoEl) {
+                                            fileInfoEl.parentElement.innerHTML = `
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                                                </svg>
+                                                <span>${escapeHtml(driveFileName)}</span>
+                                                <a href="${escapeHtml(driveLink)}" target="_blank" style="margin-left: 8px; color: #10a37f;">Open</a>
+                                            `;
+                                        }
+                                    }
+                                } else {
+                                    console.error('Failed to get file info:', fileInfoResponse.status);
+                                }
+                            } catch (fileInfoError) {
+                                console.error('Error getting file info:', fileInfoError);
+                            }
+                        } else {
+                            // This is a local file - upload it to Google Drive
+                            console.log('DEBUG: Uploading local file to Drive');
+                            
+                            try {
+                                const driveFormData = new FormData();
+                                driveFormData.append('file_name', window.pendingFile.name);
+                                driveFormData.append('file_content', window.pendingFile.content);
+                                if (window.pendingFile.type) {
+                                    driveFormData.append('file_type', window.pendingFile.type);
+                                }
+                                
+                                console.log('DEBUG: Sending upload request to /api/drive/upload');
+                                const driveResponse = await fetch('/api/drive/upload', {
+                                    method: 'POST',
+                                    body: driveFormData
+                                });
+                                
+                                console.log('DEBUG: Upload response status:', driveResponse.status);
+                                
+                                if (driveResponse.ok) {
+                                    const driveData = await driveResponse.json();
+                                    console.log('DEBUG: Upload response:', driveData);
+                                    
+                                    if (driveData.success && driveData.file) {
+                                        driveFileId = driveData.file.id || '';
+                                        driveFileName = driveData.file.name || window.pendingFile.name;
+                                        driveLink = driveData.file.webViewLink || '';
+                                        console.log('DEBUG: Drive file uploaded:', driveFileName, driveFileId);
+                                        
+                                        // Update file display with link
+                                        if (fileInfoEl) {
+                                            fileInfoEl.parentElement.innerHTML = `
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                                </svg>
+                                                <span>${escapeHtml(driveFileName)}</span>
+                                                <a href="${escapeHtml(driveLink)}" target="_blank" style="margin-left: 8px; color: #10a37f;">Open</a>
+                                            `;
+                                        }
+                                    } else {
+                                        console.error('Drive upload failed:', driveData.error);
+                                    }
+                                } else {
+                                    console.error('Upload request failed with status:', driveResponse.status);
+                                }
+                            } catch (driveError) {
+                                console.error('Error uploading to Drive:', driveError);
+                            }
+                        }
+                    }
+                    
+                    // Append drive link to sentence and add file info to form
+                    if (driveLink) {
+                        formData.set('sentence', text + ' (Attachment: ' + driveLink + ')');
+                    }
+                    
+                    // Add Drive file info to form if available
+                    if (driveFileId && driveFileName) {
+                        formData.append('drive_file_id', driveFileId);
+                        formData.append('drive_file_name', driveFileName);
+                        if (driveLink) {
+                            formData.append('drive_file_url', driveLink);
+                        }
+                        console.log('DEBUG: Adding Drive file info to form:', driveFileId, driveFileName, driveLink);
+                    }
+                    
+                    const response = await fetch('/nlp_create', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const html = await response.text();
+                    removeTypingIndicator();
+                    
+                    // Check if response is a full page (like update_select.html or meeting_details.html)
+                    // These templates have specific markers indicating full-page responses
+                    const hasSelectMeeting = html.includes('Select Meeting to Update') || 
+                                             html.includes('Select Meeting to Cancel');
+                    const hasMeetingDetails = html.includes('Meeting Updated') || 
+                                              html.includes('Meeting Created') || 
+                                              html.includes('Meeting Cancelled');
+                    const hasMessagesBlock = html.includes('block messages') || 
+                                            html.includes('message bot');
+                    
+                    const isFullPage = (hasSelectMeeting || hasMeetingDetails) && hasMessagesBlock;
+                    
+                    if (isFullPage) {
+                        // Extract the messages block and append to chat
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = html;
+                        
+                        // Find all message elements
+                        const messageElements = tempDiv.querySelectorAll('.message');
+                        
+                        if (messageElements.length > 0) {
+                            // Append all message elements to the chat
+                            messageElements.forEach(msg => {
+                                chatMessages.appendChild(msg.cloneNode(true));
+                            });
+                            scrollToBottom();
+                            
+                            // Save to chat history - extract message content
+                            const firstMessage = messageElements[0];
+                            const messageBubble = firstMessage.querySelector('.message-bubble');
+                            const botMessage = messageBubble ? messageBubble.innerHTML : '';
+                            const messageType = firstMessage.classList.contains('error') ? 'error' :
+                                               firstMessage.classList.contains('warning') ? 'warning' :
+                                               firstMessage.classList.contains('success') ? 'success' : 'info';
+                            addToHistory(text, botMessage, messageType);
+                        } else {
+                            // Fallback: extract and show the message bubble
+                            const messageBubble = tempDiv.querySelector('.message-bubble');
+                            if (messageBubble) {
+                                const messageType = messageBubble.parentElement?.classList.contains('error') ? 'error' :
+                                                   messageBubble.parentElement?.classList.contains('warning') ? 'warning' :
+                                                   messageBubble.parentElement?.classList.contains('success') ? 'success' : 'info';
+                                const icon = tempDiv.querySelector('.message-icon')?.outerHTML || '';
+                                addMessage(icon + messageBubble.innerHTML, false, '', messageType);
+                                addToHistory(text, icon + messageBubble.innerHTML, messageType);
+                            }
+                        }
+                        
+                        sendBtn.disabled = false;
+                        return;
+                    }
+                    
+                    // Otherwise, extract message content from the response
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = html;
+                    
+                    // Check if it's an error page
+                    const messageType = tempDiv.querySelector('.message-bubble')?.classList.contains('error') ? 'error' : 
+                                       tempDiv.querySelector('.message-bubble')?.classList.contains('warning') ? 'warning' :
+                                       tempDiv.querySelector('.message-bubble')?.classList.contains('success') ? 'success' : 'info';
+                    
+                    // Get the icon and message content
+                    const icon = tempDiv.querySelector('.message-bubble')?.innerHTML || '';
+                    
+                    // Add bot response to chat
+                    addMessage(icon, false, '', messageType);
+                    
+                    // Save to chat history
+                    addToHistory(text, icon, messageType);
+                    
+                    sendBtn.disabled = false;
+                    
+                } catch (error) {
+                    removeTypingIndicator();
+                    const errorMsg = 'Sorry, something went wrong. Please try again.';
+                    addMessage(errorMsg, false, '', 'error');
+                    addToHistory(text, errorMsg, 'error');
+                    sendBtn.disabled = false;
+                }
+            } else {
+                // Regular chat message
+                setTimeout(() => {
+                    removeTypingIndicator();
+                    const helpMsg = 'I can help you create, update, or cancel meetings. Try saying something like "Create a meeting with John tomorrow at 3 PM" or "Fix a meeting with Rajit"';
+                    addMessage(helpMsg, false, '');
+                    addExamples([
+                        'Create meeting with John tomorrow at 3 PM',
+                        'Schedule a team standup on Monday at 9 AM',
+                        'Fix a meeting with Rajit',
+                        'Show my events for next week'
+                    ]);
+                    
+                    // Save to history (only the main message, not examples)
+                    addToHistory(text, helpMsg, 'info');
+                    
+                    sendBtn.disabled = false;
+                }, 1000);
+            }
+        }
+        
+        // Load chat dates from server
+        async function loadChatDates() {
+            const datesList = document.getElementById('chatDatesList');
+            console.log('Loading chat dates...');
+            try {
+                const response = await fetch('/api/chat/dates');
+                console.log('Response status:', response.status);
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (data.dates && data.dates.length > 0) {
+                    const today = new Date().toISOString().split('T')[0];
+                    let html = '';
+                    data.dates.forEach(dateInfo => {
+                        const isToday = dateInfo.date === today;
+                        html += `
+                            <div class="date-item ${isToday ? 'active today' : ''}" 
+                                 data-date="${dateInfo.date}"
+                                 onclick="loadChatsForDate('${dateInfo.date}')">
+                                <div class="date-day-name">${isToday ? 'Today' : dateInfo.day_name}</div>
+                                <div class="date-full">${dateInfo.display_date}</div>
+                            </div>
+                        `;
+                    });
+                    datesList.innerHTML = html;
+                    
+                    // Auto-load today's chats if today exists
+                    const todayDate = data.dates.find(d => d.date === today);
+                    if (todayDate) {
+                        loadChatsForDate(today);
+                    } else if (data.dates.length > 0) {
+                        // Load the most recent date if today isn't available
+                        loadChatsForDate(data.dates[0].date);
+                    }
+                } else {
+                    datesList.innerHTML = '<div class="no-history">No chat history yet</div>';
+                }
+            } catch (error) {
+                console.error('Error loading chat dates:', error);
+                datesList.innerHTML = '<div class="loading-dates">Error loading dates</div>';
+            }
+        }
+        
+        async function loadChatsForDate(date) {
+            // Update active state in sidebar
+            document.querySelectorAll('.date-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Only update active state if called from click event
+            if (typeof event !== 'undefined' && event.target) {
+                const activeItem = event.target.closest('.date-item');
+                if (activeItem) {
+                    activeItem.classList.add('active');
+                }
+            } else {
+                // Find and set active state programmatically
+                const today = new Date().toISOString().split('T')[0];
+                const dateItem = document.querySelector(`.date-item[data-date="${date}"]`);
+                if (dateItem) {
+                    dateItem.classList.add('active');
+                } else {
+                    // Mark the first date item as active
+                    const firstItem = document.querySelector('.date-item');
+                    if (firstItem) {
+                        firstItem.classList.add('active');
+                    }
+                }
+            }
+            
+            // Load chats for the date
+            try {
+                const response = await fetch(`/api/chat/${date}`);
+                const data = await response.json();
+                
+                // Clear current chats
+                chatMessages.innerHTML = '';
+                
+                // Add date separator
+                const dateLabel = document.createElement('div');
+                dateLabel.className = 'current-date-label';
+                dateLabel.textContent = data.date === new Date().toISOString().split('T')[0] 
+                    ? "Today's Chats" 
+                    : new Date(data.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                chatMessages.appendChild(dateLabel);
+                
+                // Add chats
+                if (data.chats && data.chats.length > 0) {
+                    data.chats.forEach(chat => {
+                        const userDiv = document.createElement('div');
+                        userDiv.className = 'message user';
+                        userDiv.innerHTML = `<div class="message-bubble user-bubble"><p>${escapeHtml(chat.user_message)}</p></div>`;
+                        chatMessages.appendChild(userDiv);
+                        
+                        const botDiv = document.createElement('div');
+                        botDiv.className = `message bot ${chat.message_type}`;
+                        botDiv.innerHTML = `<div class="bot-avatar"></div><div class="message-bubble bot-bubble">${chat.bot_response}</div>`;
+                        chatMessages.appendChild(botDiv);
+                    });
+                } else {
+                    const noChats = document.createElement('div');
+                    noChats.className = 'no-history';
+                    noChats.textContent = 'No chats for this date';
+                    chatMessages.appendChild(noChats);
+                }
+                
+                scrollToBottom();
+            } catch (error) {
+                console.error('Error loading chats:', error);
+            }
+        }
+        
+        async function clearAllChatHistory() {
+            if (confirm('Are you sure you want to clear all chat history?')) {
+                try {
+                    await fetch('/api/chat/clear', { method: 'POST' });
+                    localStorage.removeItem(STORAGE_KEY);
+                    location.reload();
+                } catch (error) {
+                    console.error('Error clearing history:', error);
+                }
+            }
+        }
+        
+        // Logout and reauthenticate
+        function logout() {
+            if (confirm('Are you sure you want to logout? You will need to reauthenticate to use Google Calendar.')) {
+                // Clear local storage
+                localStorage.removeItem(STORAGE_KEY);
+                
+                // Delete token file by making API call
+                fetch('/logout', { method: 'POST' })
+                    .then(() => {
+                        // Redirect to home which will show auth page
+                        window.location.href = '/';
+                    })
+                    .catch((error) => {
+                        console.error('Error logging out:', error);
+                        window.location.href = '/';
+                    });
+            }
+        }
+        
+        // Initialize chat - render history or show welcome message
+        window.addEventListener('load', function() {
+            console.log('Window loaded');
+            // Load sidebar dates
+            loadChatDates();
+            
+            // Check for chat message from session (e.g., after delete)
+            const chatMessageEl = document.getElementById('chatMessageData');
+            if (chatMessageEl && chatMessageEl.dataset.message) {
+                try {
+                    const messageData = JSON.parse(chatMessageEl.dataset.message);
+                    
+                    // Clear current chat view and show today's chats with the new message
+                    chatMessages.innerHTML = '';
+                    
+                    // Add date label for today
+                    const todayLabel = document.createElement('div');
+                    todayLabel.className = 'chat-date-label';
+                    todayLabel.textContent = 'Today';
+                    chatMessages.appendChild(todayLabel);
+                    
+                    // Add the bot message
+                    addMessage(messageData.message, false, messageData.icon, messageData.type);
+                    addToHistory('', messageData.message, messageData.type);
+                    
+                    // Clear the data attribute so it doesn't show again on reload
+                    chatMessageEl.dataset.message = '';
+                } catch (e) {
+                    console.error('Error parsing chat message:', e);
+                }
+            } else {
+                // Render existing chat history
+                renderChatHistory();
+            }
+        });
+        
+        // Backup: call loadChatDates after a short delay in case load event already fired
+        setTimeout(function() {
+            console.log('Backup call to loadChatDates');
+            const datesList = document.getElementById('chatDatesList');
+            if (datesList && datesList.innerHTML.includes('Loading')) {
+                loadChatDates();
+            }
+        }, 500);
+    </script>
+</body>
+</html>

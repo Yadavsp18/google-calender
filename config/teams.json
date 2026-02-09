@@ -1,0 +1,89 @@
+{
+    "teams": {
+        "tech team": {
+            "members": [
+                "tech-team@company.com",
+                "developers@company.com",
+                "engineering@company.com"
+            ],
+            "aliases": ["tech", "engineering", "developers"]
+        },
+        "dm team": {
+            "members": [
+                "dm-team@company.com",
+                "digital-marketing@company.com",
+                "marketing@company.com"
+            ],
+            "aliases": ["dm", "digital marketing", "marketing"]
+        },
+        "hr team": {
+            "members": [
+                "hr-team@company.com",
+                "human-resources@company.com",
+                "people@company.com"
+            ],
+            "aliases": ["hr", "human resources", "people"]
+        },
+        "sales team": {
+            "members": [
+                "sales-team@company.com",
+                "sales@company.com",
+                "business-development@company.com"
+            ],
+            "aliases": ["sales", "business development", "bd"]
+        },
+        "support team": {
+            "members": [
+                "support-team@company.com",
+                "customer-support@company.com",
+                "helpdesk@company.com"
+            ],
+            "aliases": ["support", "customer support", "helpdesk"]
+        },
+        "finance team": {
+            "members": [
+                "finance-team@company.com",
+                "finance@company.com",
+                "accounting@company.com"
+            ],
+            "aliases": ["finance", "accounting"]
+        },
+        "management team": {
+            "members": [
+                "management@company.com",
+                "managers@company.com",
+                "leadership@company.com"
+            ],
+            "aliases": ["management", "managers", "leadership", "leads"]
+        },
+        "design team": {
+            "members": [
+                "design-team@company.com",
+                "design@company.com",
+                "creative@company.com"
+            ],
+            "aliases": ["design", "creative", "ui/ux"]
+        },
+        "product team": {
+            "members": [
+                "product-team@company.com",
+                "product@company.com",
+                "product-management@company.com"
+            ],
+            "aliases": ["product", "pm"]
+        },
+        "operations team": {
+            "members": [
+                "operations-team@company.com",
+                "operations@company.com",
+                "ops@company.com"
+            ],
+            "aliases": ["operations", "ops"]
+        }
+    },
+    "default_domains": [
+        "@company.com",
+        "@gmail.com",
+        "@outlook.com"
+    ]
+}
