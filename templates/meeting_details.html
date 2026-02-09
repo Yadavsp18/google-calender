@@ -1,84 +1,105 @@
 <style>
+    .bot-bubble {
+        padding: 16px 20px;
+    }
     .event-details {
         background: #2a2b32;
-        padding: 12px;
-        border-radius: 10px;
-        margin-top: 10px;
+        padding: 16px;
+        border-radius: 12px;
+        margin-top: 12px;
         font-size: 14px;
+        border: 1px solid #3a3b3f;
     }
-    .message.bot.success .message-bubble {
-        background: #d4edda;
-        border-color: #c3e6cb;
-        color: #155724;
+    .event-details .detail-row {
+        display: flex;
+        align-items: flex-start;
+        padding: 8px 0;
+        border-bottom: 1px solid #3a3b3f;
     }
-    .message.bot.success .message-bubble h3 {
-        color: #155724;
+    .event-details .detail-row:last-child {
+        border-bottom: none;
     }
-    .message.bot.success .message-bubble .label {
-        color: #155724;
+    .event-details .detail-icon {
+        width: 24px;
+        font-size: 16px;
+        margin-right: 12px;
+        flex-shrink: 0;
     }
-    .message.bot.success .message-bubble a {
-        color: #155724;
+    .event-details .detail-content {
+        flex: 1;
+        word-wrap: break-word;
     }
-    .message.bot.success .message-bubble .quick-action-btn {
-        background: #155724;
+    .event-details .detail-label {
+        color: #9ca3af;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 2px;
+    }
+    .event-details .detail-value {
         color: white;
+        font-size: 14px;
+        font-weight: 500;
     }
-    .message.bot.success .message-bubble .action-buttons a {
-        background: #155724;
-        color: white;
-        border-color: #155724;
+    .event-details .detail-value a {
+        color: #60a5fa;
+        text-decoration: none;
     }
-    .message.bot.success .message-bubble .action-buttons a.secondary {
-        background: transparent;
-        color: #155724;
+    .event-details .detail-value a:hover {
+        text-decoration: underline;
     }
     .quick-action-btn {
         background: #40414f;
         color: white;
-        border: none;
-        padding: 8px 12px;
-        border-radius: 6px;
+        border: 1px solid #4d4d4f;
+        padding: 10px 16px;
+        border-radius: 8px;
         cursor: pointer;
         font-size: 13px;
         margin-right: 8px;
         margin-top: 8px;
+        transition: all 0.2s ease;
     }
     .quick-action-btn:hover {
-        background: #4d4d4f;
+        background: #2a2b32;
+        border-color: #8e8ea0;
     }
     .action-buttons {
-        margin-top: 12px;
+        margin-top: 16px;
         margin-bottom: 12px;
     }
     .action-buttons a {
-        display: inline-block;
-        padding: 8px 16px;
-        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        border-radius: 8px;
         text-decoration: none;
         font-size: 14px;
-        margin-right: 8px;
         font-weight: 500;
+        margin-right: 10px;
+        transition: all 0.2s ease;
     }
     .action-buttons a.primary {
         background: #1a73e8;
         color: white;
         border: 1px solid #1a73e8;
     }
+    .action-buttons a.primary:hover {
+        background: #1557b0;
+        border-color: #1557b0;
+    }
     .action-buttons a.secondary {
         background: transparent;
         color: white;
         border: 1px solid #4d4d4f;
     }
-    .event-details .label {
-        color: #9ca3af;
-        font-weight: 500;
-    }
-    .event-details .value {
-        color: white;
+    .action-buttons a.secondary:hover {
+        background: #2a2b32;
+        border-color: #8e8ea0;
     }
     .event-details a {
-        color: #1a73e8;
+        color: #60a5fa;
         text-decoration: none;
     }
     .event-details a:hover {
@@ -95,63 +116,105 @@
     {% if icon %}
     <span class="message-icon">{{ icon }}</span>
     {% endif %}
-    <div class="message-bubble">
+    <div class="message-bubble bot-bubble event-details">
         <h3 style="margin: 0 0 10px;">{{ title }}</h3>
         <p>{{ message }}</p>
         
         {% if show_details %}
         <div class="event-details">
             {% if summary %}
-            <div><span class="label">Title:</span> <span class="value">{{ summary }}</span></div>
+            <div class="detail-row">
+                <span class="detail-icon">📋</span>
+                <div class="detail-content">
+                    <div class="detail-label">Title</div>
+                    <div class="detail-value">{{ summary }}</div>
+                </div>
+            </div>
             {% endif %}
             
             {% if start %}
-            <div><span class="label">📅 Start:</span> <span class="value">{{ start }}</span></div>
+            <div class="detail-row">
+                <span class="detail-icon">📅</span>
+                <div class="detail-content">
+                    <div class="detail-label">Start</div>
+                    <div class="detail-value">{{ start }}</div>
+                </div>
+            </div>
             {% endif %}
             
             {% if end %}
-            <div><span class="label">⏰ End:</span> <span class="value">{{ end }}</span></div>
+            <div class="detail-row">
+                <span class="detail-icon">⏰</span>
+                <div class="detail-content">
+                    <div class="detail-label">End</div>
+                    <div class="detail-value">{{ end }}</div>
+                </div>
+            </div>
             {% endif %}
             
             {% if location %}
-            <div><span class="label">📍 Location:</span> <span class="value">{{ location }}</span></div>
+            <div class="detail-row">
+                <span class="detail-icon">📍</span>
+                <div class="detail-content">
+                    <div class="detail-label">Location</div>
+                    <div class="detail-value">{{ location }}</div>
+                </div>
+            </div>
             {% endif %}
             
             {% if attendees %}
-            <div><span class="label">👥 Attendees:</span> <span class="value">{{ attendees }}</span></div>
+            <div class="detail-row">
+                <span class="detail-icon">👥</span>
+                <div class="detail-content">
+                    <div class="detail-label">Attendees</div>
+                    <div class="detail-value">{{ attendees }}</div>
+                </div>
+            </div>
             {% endif %}
             
             {% if attachments %}
-            <div class="label">📎 Attachments:</div>
-            {% for attachment in attachments %}
-            <div style="margin-left: 10px; margin-bottom: 8px;">
-                <span class="value">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
-                        <path d="M12 2L2 19h7l3-5.5L15 19h7L12 2z"></path>
-                    </svg>
-                    {{ attachment.title }}
-                </span>
-                <br>
-                <span class="value" style="margin-left: 24px;">
-                    <a href="{{ attachment.fileUrl }}" target="_blank" style="color: #1a73e8; display: inline-flex; align-items: center; gap: 4px; font-size: 13px;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                            <polyline points="15 3 21 3 21 9"></polyline>
-                            <line x1="10" y1="14" x2="21" y2="3"></line>
+            <div class="detail-row">
+                <span class="detail-icon">📎</span>
+                <div class="detail-content">
+                    <div class="detail-label">Attachments</div>
+                    {% for attachment in attachments %}
+                    <div class="detail-value" style="margin-bottom: 4px;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                            <path d="M12 2L2 19h7l3-5.5L15 19h7L12 2z"></path>
                         </svg>
-                        Open in Google Drive
-                    </a>
-                </span>
+                        {{ attachment.title }}
+                        <a href="{{ attachment.fileUrl }}" target="_blank" style="margin-left: 8px; font-size: 12px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                            Open
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
-            {% endfor %}
             {% endif %}
             
             {% if hangout_link %}
-            <div><span class="label">🔗 Google Meet:</span> <span class="value"><a href="{{ hangout_link }}" target="_blank">Join Meeting</a></span></div>
+            <div class="detail-row">
+                <span class="detail-icon">🔗</span>
+                <div class="detail-content">
+                    <div class="detail-label">Google Meet</div>
+                    <div class="detail-value"><a href="{{ hangout_link }}" target="_blank">Join Meeting</a></div>
+                </div>
+            </div>
             {% endif %}
             
             {% if html_link %}
-            <div><span class="label">📆 Calendar:</span> <span class="value"><a href="{{ html_link }}" target="_blank">View in Google Calendar</a></span></div>
+            <div class="detail-row">
+                <span class="detail-icon">📆</span>
+                <div class="detail-content">
+                    <div class="detail-label">Calendar</div>
+                    <div class="detail-value"><a href="{{ html_link }}" target="_blank">View in Google Calendar</a></div>
+                </div>
+            </div>
             {% endif %}
         </div>
         

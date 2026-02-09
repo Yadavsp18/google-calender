@@ -297,18 +297,8 @@
             color: #721c24;
         }
         
-        .message.bot.warning .message-bubble {
-            background: #fff3cd;
-            border-color: #ffeeba;
-            color: #856404;
-        }
-        
-        .message.bot.success .message-bubble {
-            background: #d4edda;
-            border-color: #c3e6cb;
-            color: #155724;
-        }
-        
+
+
         /* Bot avatar */
         .bot-avatar {
             width: 36px;
@@ -486,28 +476,7 @@
             border-color: #8e8ea0;
         }
         
-        .event-details {
-            background: #2a2b32;
-            padding: 12px;
-            border-radius: 10px;
-            margin-top: 10px;
-            font-size: 14px;
-        }
-        
-        .event-details strong {
-            color: #10a37f;
-        }
-        
-        .event-details .label {
-            color: #aaa;
-            font-size: 12px;
-        }
-        
-        .event-details .value {
-            font-weight: 600;
-            color: white;
-        }
-        
+
         .typing-indicator {
             display: flex;
             align-items: center;
@@ -1034,12 +1003,39 @@
                 // Add bot message
                 if (chat.botMessage) {
                     const botDiv = document.createElement('div');
-                    botDiv.className = `message bot ${chat.messageType}`;
-                    botDiv.innerHTML = `<div class="bot-avatar"></div><div class="message-bubble bot-bubble">${chat.botMessage}</div>`;
+                    botDiv.className = `message bot ${chat.messageType || ''}`;
+                    // Convert newlines to <br> tags and wrap in proper HTML structure
+                    const formattedMessage = formatBotMessage(chat.botMessage);
+                    botDiv.innerHTML = `<div class="bot-avatar"></div><div class="message-bubble bot-bubble">${formattedMessage}</div>`;
                     chatMessages.appendChild(botDiv);
                 }
             });
             scrollToBottom();
+        }
+        
+        // Format bot message with proper line breaks
+        function formatBotMessage(text) {
+            if (!text) return '';
+            // Split by newlines and create paragraphs
+            const lines = text.split('\n');
+            let html = '';
+            lines.forEach(line => {
+                // Check if line starts with emoji + identifier (like "Title: Meeting")
+                const emojiMatch = line.match(/^([\p{Emoji}]+\s*)(.+)/u);
+                if (emojiMatch) {
+                    const [_, emoji, content] = emojiMatch;
+                    // Split content by ": " if present
+                    const contentParts = content.split(': ');
+                    if (contentParts.length > 1) {
+                        html += `<div style="margin: 4px 0;"><span style="color: #9ca3af;">${emoji}${contentParts[0]}:</span> <span style="color: white;">${contentParts.slice(1).join(': ')}</span></div>`;
+                    } else {
+                        html += `<div style="margin: 4px 0;">${emoji}${content}</div>`;
+                    }
+                } else {
+                    html += `<div style="margin: 4px 0;">${line}</div>`;
+                }
+            });
+            return html;
         }
         
         // Escape HTML to prevent XSS
@@ -1578,7 +1574,7 @@
                         
                         const botDiv = document.createElement('div');
                         botDiv.className = `message bot ${chat.message_type}`;
-                        botDiv.innerHTML = `<div class="bot-avatar"></div><div class="message-bubble bot-bubble">${chat.bot_response}</div>`;
+                        botDiv.innerHTML = `<div class="bot-avatar"></div><div class="message-bubble bot-bubble">${formatBotMessage(chat.bot_response)}</div>`;
                         chatMessages.appendChild(botDiv);
                     });
                 } else {
