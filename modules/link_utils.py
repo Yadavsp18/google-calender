@@ -53,11 +53,17 @@ def extract_meeting_link(sentence: str) -> Tuple[Optional[str], bool]:
             link = 'https://' + link
         return link, False
     
-    # Generic URL pattern for any https/http link
+    # Generic URL pattern for any https/http link (EXCLUDING Google Drive URLs)
+    # Drive URLs should not be treated as meeting links
     generic_url_pattern = r'https?://[a-zA-Z0-9][-a-zA-Z0-9]*(\.[a-zA-Z0-9][-a-zA-Z0-9]*)+(/[^\s]*)?'
     generic_match = re.search(generic_url_pattern, text, re.IGNORECASE)
     if generic_match:
-        return generic_match.group(0), False
+        url = generic_match.group(0)
+        # Skip Google Drive URLs - they should be treated as attachments, not meeting links
+        if 'drive.google.com' in url:
+            pass  # Don't return Drive URLs as meeting links
+        else:
+            return url, False
     
     # Check for "usual" or "default" link
     if re.search(r'\busual\b', text) or re.search(r'\bdefault\b', text):

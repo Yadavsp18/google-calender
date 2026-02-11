@@ -668,8 +668,10 @@ def handle_time_clarification_logic(sentence: str, base_date: datetime = None, n
             "clarification_message": None
         }
 
-    # ---------- NO TIME → USE CURRENT TIME ----------
-    start_dt = base_date.replace(hour=now.hour, minute=now.minute, second=0, microsecond=0)
+    # ---------- NO TIME → USE DEFAULT TIME (9:00 AM) ----------
+    # For meeting scheduling, use 9:00 AM as default when no time is specified
+    # This is more predictable than using the current time
+    start_dt = base_date.replace(hour=9, minute=0, second=0, microsecond=0)
     end_dt = start_dt + timedelta(minutes=30)
 
     return {

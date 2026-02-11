@@ -129,11 +129,37 @@ def build_event_resource(details, user_meet_link=None):
     location = details.get('location', '')
     use_meet = details.get('use_meet', False)
     
-    # Priority 1: Custom link provided (Zoom/Teams/Meet URL) → use that link
-    if custom_meet_link and not is_auto_generated:
+    # Helper to detect if a URL is a Google Drive link
+    def is_google_drive_link(url):
+        if not url:
+            return False
+        return 'drive.google.com' in url.lower() or 'docs.google.com' in url.lower()
+    
+    # Helper to detect if a URL is a valid meeting link
+    def is_meeting_link(url):
+        if not url:
+            return False
+        url_lower = url.lower()
+        return any(domain in url_lower for domain in [
+            'meet.google.com', 
+            'zoom.us', 
+            'teams.microsoft.com',
+            'webex.com',
+            'gotomeet.it',
+            'gotomeeting.com'
+        ])
+    
+    # Priority 1: Google Drive link → add to description as attachment, NOT as location
+    if custom_meet_link and is_google_drive_link(custom_meet_link):
+        event['location'] = 'Online'
+        event['description'] = (event.get('description', '') + 
+            '\n\n📎 Google Drive Link: ' + custom_meet_link).strip()
+        print(f"DEBUG: Google Drive link detected - added to description, not location")
+    # Priority 2: Custom meeting link provided (Zoom/Teams/Meet URL) → use that link
+    elif custom_meet_link and is_meeting_link(custom_meet_link):
         event['location'] = custom_meet_link
         event['description'] = (event.get('description', '') + '\n\nMeeting Link: ' + custom_meet_link).strip()
-    # Priority 2: Generate Google Meet (use_meet=True and no custom link)
+    # Priority 3: Generate Google Meet (use_meet=True and no custom link)
     elif use_meet and not custom_meet_link:
         event['conferenceData'] = {
             'createRequest': {
@@ -142,14 +168,14 @@ def build_event_resource(details, user_meet_link=None):
             }
         }
         event['location'] = 'Google Meet'
-    # Priority 3: Offline meeting with physical location
+    # Priority 4: Offline meeting with physical location
     elif mode == 'offline' and location:
         event['location'] = location
-    # Priority 4: Online meeting without link generation
+    # Priority 5: Online meeting without link generation
     elif mode == 'online' and not use_meet:
         event['location'] = location if location else 'Online'
-    # Default: Generate Google Meet
-    else:
+    # Priority 6: Default for online meetings - generate Google Meet
+    elif mode == 'online':
         event['conferenceData'] = {
             'createRequest': {
                 'requestId': details.get('requestId', 'sample123'),

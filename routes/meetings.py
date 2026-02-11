@@ -11,7 +11,6 @@ Routes:
 
 from flask import Blueprint, request, render_template, session, redirect, jsonify
 import os
-import re
 import json
 from datetime import datetime, timezone
 
@@ -34,6 +33,7 @@ from modules.chat_logger import (
     get_chats_by_date,
     clear_daily_chat
 )
+from modules.action_utils import detect_action
 
 
 # Token file path for checking authentication
@@ -85,36 +85,7 @@ def is_authenticated():
 meetings_bp = Blueprint('meetings', __name__)
 
 
-# =============================================================================
-# Action Detection Patterns
-# =============================================================================
 
-CANCEL_PATTERNS = [
-    r'\bto\s+(cancel|delete|remove)\b(?!.*(?:reschedule|postpone|update|change|modify|move|shift))',
-    r'\b(cancel|delete|remove)\s+(a|the|my|our|this|that|it|meeting|event|\w+)\b(?!.*(?:reschedule|postpone|update|change|modify|move|shift))',
-    r'\bcancel(?:ing)?\s+(?:the\s+)?(?:meeting|event|appointment)\b',
-    r'\bdelete\s+(?:the\s+)?(?:meeting|event|appointment)\b',
-    r'\bremove\s+(?:the\s+)?(?:meeting|event|appointment)\b',
-]
-
-UPDATE_PATTERNS = [
-    r'\bto\s+(update|change|modify|reschedule|move|shift|postpone)\b(?!.*(?:meeting|event|appointment))',
-    r'\b(update|change|modify|reschedule|move|shift|postpone)\s+(a|the|my|our|this|that|it|meeting|event|appointment|call)\b',
-    r'\b(?:reschedule|postpone|change|modify|update|shift|move)\s+(?:the\s+)?(?:meeting|event|appointment|call)\b',
-    r'\bchange\s+(?:the\s+)?(?:time|date|meeting|event)\b',
-]
-
-
-def detect_action(sentence):
-    """Detect the action type from the sentence."""
-    is_cancel = any(re.search(p, sentence, re.IGNORECASE) for p in CANCEL_PATTERNS)
-    is_update = any(re.search(p, sentence, re.IGNORECASE) for p in UPDATE_PATTERNS)
-    return is_cancel, is_update
-
-
-# =============================================================================
-# Main Routes
-# =============================================================================
 
 @meetings_bp.route('/')
 def index():
@@ -221,6 +192,11 @@ def api_drive_upload():
         file_content = request.form.get('file_content', '')
         file_type = request.form.get('file_type', '')
         
+        print(f"DEBUG: api_drive_upload called")
+        print(f"DEBUG: file_name={file_name}")
+        print(f"DEBUG: file_content length={len(file_content) if file_content else 0}")
+        print(f"DEBUG: file_type={file_type}")
+        
         # Determine mime type
         mime_type = None
         if file_type:
@@ -229,13 +205,18 @@ def api_drive_upload():
             import mimetypes
             mime_type, _ = mimetypes.guess_type(file_name)
         
+        print(f"DEBUG: mime_type={mime_type}")
+        
         result = upload_to_drive(file_name, file_content, mime_type)
+        
+        print(f"DEBUG: upload_to_drive result={result}")
         
         if 'error' in result:
             return jsonify({'error': result['error']}), 500
         
         return jsonify({'success': True, 'file': result})
     except Exception as e:
+        print(f"DEBUG: api_drive_upload exception: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -331,21 +312,25 @@ def nlp_create():
         else:
             print(f"DEBUG: File upload failed: {result.get('error')}")
     
-    is_cancel, is_update = detect_action(sentence)
+    is_create, is_cancel, is_update, is_reschedule = detect_action(sentence)
     
     # Debug output
     print(f"\nDEBUG: Sentence='{sentence}'")
-    print(f"DEBUG: is_cancel={is_cancel}, is_update={is_update}")
+    print(f"DEBUG: is_create={is_create}, is_cancel={is_cancel}, is_update={is_update}, is_reschedule={is_reschedule}")
     print(f"DEBUG: drive_file_id={drive_file_id}, drive_file_name={drive_file_name}, drive_file_url={drive_file_url}")
     
     if is_cancel:
         print("DEBUG: Routing to handle_cancel_meeting")
         return handle_cancel_meeting(sentence, service)
-    elif is_update:
+    elif is_reschedule or is_update:
         print("DEBUG: Routing to handle_update_meeting")
         return handle_update_meeting(sentence, service)
-    else:
+    elif is_create:
         print("DEBUG: Routing to handle_create_meeting")
+        return handle_create_meeting(sentence, service, drive_file_id=drive_file_id, drive_file_name=drive_file_name, drive_file_url=drive_file_url)
+    else:
+        # Default to create if no pattern matches
+        print("DEBUG: No action detected, defaulting to handle_create_meeting")
         return handle_create_meeting(sentence, service, drive_file_id=drive_file_id, drive_file_name=drive_file_name, drive_file_url=drive_file_url)
 
 
@@ -463,9 +448,24 @@ def update_event(event_id):
             if new_end_dt.tzinfo is None:
                 new_end_dt = new_end_dt.replace(tzinfo=tz.utc)
             
-            # Find the original date for this event
+            # Find the original date or use user-specified date
             user_specified_date = session.get('user_specified_date', False)
-            if not user_specified_date and original_dates and original_dates[0]:
+            if user_specified_date:
+                # Use the user-specified date (from extracted date in the sentence)
+                user_new_date = session.get('update_new_date', {})
+                if user_new_date:
+                    new_start_dt = new_start_dt.replace(
+                        year=user_new_date.get('year', new_start_dt.year),
+                        month=user_new_date.get('month', new_start_dt.month),
+                        day=user_new_date.get('day', new_start_dt.day)
+                    )
+                    new_end_dt = new_end_dt.replace(
+                        year=user_new_date.get('year', new_end_dt.year),
+                        month=user_new_date.get('month', new_end_dt.month),
+                        day=user_new_date.get('day', new_end_dt.day)
+                    )
+                    print(f"DEBUG: Using user-specified date: {new_start_dt.date()}")
+            elif original_dates and original_dates[0]:
                 # Only use original date if user didn't specify a new date
                 original_date = date_parse(original_dates[0])
                 new_start_dt = new_start_dt.replace(
@@ -507,6 +507,7 @@ def update_event(event_id):
         session.pop('update_meet_link', None)
         session.pop('update_new_start', None)
         session.pop('update_new_end', None)
+        session.pop('update_new_date', None)
         session.pop('original_dates', None)
         session.pop('user_specified_date', None)
         

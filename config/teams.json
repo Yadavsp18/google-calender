@@ -79,6 +79,14 @@
                 "ops@company.com"
             ],
             "aliases": ["operations", "ops"]
+        },
+        "growth team": {
+            "members": [
+                "growth-team@company.com",
+                "growth@company.com",
+                "business-growth@company.com"
+            ],
+            "aliases": ["growth", "business growth"]
         }
     },
     "default_domains": [

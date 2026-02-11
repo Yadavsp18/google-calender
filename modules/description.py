@@ -25,6 +25,7 @@ def extract_meeting_description(sentence: str) -> str:
     desc_patterns = [
         r'\babout\s+(.{3,})',
         r'\bregarding\s+(.{3,})',
+        r'\bre\s+(.{3,})',  # Handle "re term sheet" pattern
         r'\btopic\s+(.{3,})',
         r'\bfor\s+(?:the\s+)?(?:discussion|review|update|plan)\s+(?:of\s+)?(.{3,})',
         r'\bon\s+(?:the\s+)?(?:topic|subject)\s+(?:of\s+)?(.{3,})',

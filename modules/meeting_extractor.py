@@ -91,6 +91,10 @@ def extract_meeting_details(
         else:
             # No time mentioned - use current default time (14:00 = 2pm)
             start_dt = extracted_date.replace(hour=14, minute=0, second=0, microsecond=0)
+    elif extracted_time:
+        # No date mentioned, but time is specified - use the time from extracted_time
+        # which already has the base date applied
+        start_dt = extracted_time
     
     # Calculate end time
     end_dt = None

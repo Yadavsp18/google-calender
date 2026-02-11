@@ -82,9 +82,13 @@ def upload_to_drive(file_name, file_content, mime_type=None):
     Returns:
         dict: File metadata including webViewLink, or {'error': ...} on error
     """
+    print(f"DEBUG: upload_to_drive called with file_name={file_name}, mime_type={mime_type}")
+    print(f"DEBUG: file_content length={len(file_content) if file_content else 0}")
+    
     service = get_drive_service()
     
     if not service:
+        print("DEBUG: Not authenticated with Google Drive")
         return {'error': 'Not authenticated with Google Drive'}
     
     try:
@@ -95,10 +99,13 @@ def upload_to_drive(file_name, file_content, mime_type=None):
             # Likely base64
             try:
                 file_data = base64.b64decode(file_content)
-            except Exception:
+                print(f"DEBUG: Decoded base64, file_data length={len(file_data)}")
+            except Exception as e:
+                print(f"DEBUG: base64 decode failed: {e}")
                 file_data = file_content.encode('utf-8')
         else:
             file_data = file_content.encode('utf-8') if isinstance(file_content, str) else file_content
+            print(f"DEBUG: Using raw content, length={len(file_data)}")
         
         # Detect mime type if not provided
         if mime_type is None:
@@ -106,6 +113,8 @@ def upload_to_drive(file_name, file_content, mime_type=None):
             mime_type, _ = mimetypes.guess_type(file_name)
             if mime_type is None:
                 mime_type = 'application/octet-stream'
+        
+        print(f"DEBUG: Final mime_type={mime_type}")
         
         file_metadata = {
             'name': file_name,
@@ -118,26 +127,35 @@ def upload_to_drive(file_name, file_content, mime_type=None):
             resumable=True
         )
         
+        print("DEBUG: Creating file in Drive...")
         file = service.files().create(
             body=file_metadata,
             media_body=media,
             fields='id,name,webViewLink,webContentLink'
         ).execute()
         
+        print(f"DEBUG: File created with id={file.get('id')}")
+        
         # Make file accessible via link
-        service.permissions().create(
-            fileId=file['id'],
-            body={'type': 'anyone', 'role': 'reader'}
-        ).execute()
+        try:
+            service.permissions().create(
+                fileId=file['id'],
+                body={'type': 'anyone', 'role': 'reader'},
+                sendNotificationEmail=False
+            ).execute()
+            print(f"DEBUG: File permissions set to public")
+        except Exception as perm_error:
+            print(f"DEBUG: Could not set public permissions (file may already be public or different ownership): {perm_error}")
         
         return {
             'id': file['id'],
             'name': file['name'],
             'webViewLink': file.get('webViewLink'),
             'webContentLink': file.get('webContentLink'),
-            'fileUrl': file.get('webViewLink')  # Use webViewLink for opening in Drive
+            'fileUrl': file.get('webContentLink') or file.get('webViewLink')  # Prefer direct download link for attachments
         }
     except Exception as e:
+        print(f"DEBUG: upload_to_drive exception: {e}")
         return {'error': str(e)}
 
 

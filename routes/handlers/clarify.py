@@ -56,26 +56,99 @@ def handle_time_clarification(original_sentence: str, extracted_time: str = None
     )
 
 
-def handle_time_clarification_wrapper(sentence, now=None):
+def handle_time_clarification_wrapper(sentence, now=None, drive_file_id=None, drive_file_name=None, drive_file_url=None):
     """
     Wrapper that coordinates date and time extraction for clarification.
     Uses centralized extract_date from date_utils and handle_time_clarification_logic from time_utils.
+    
+    Handles:
+    - "default" keyword: defaults to now + 30 minutes
+    - No date/time specified: defaults to now + 30 minutes
+    - Past dates: auto-corrects to tomorrow at same time
     """
     ist = timezone(timedelta(hours=5, minutes=30))
     if now is None:
         now = datetime.now(ist)
+    
+    # Check for "default" keyword - if found, default to now + 30 mins
+    if 'default' in sentence.lower():
+        default_start = now + timedelta(minutes=30)
+        default_end = default_start + timedelta(minutes=30)
+        return {
+            "start_time": default_start,
+            "end_time": default_end,
+            "needs_clarification": False
+        }
 
     # Extract date first using centralized function
     extracted_date, is_past = extract_date(sentence, base_dt=now)
     
+    # Check if a specific date was mentioned in the sentence
+    date_mentioned = extracted_date is not None
+    
     if extracted_date is not None:
+        # Handle past dates: auto-correct to tomorrow
+        if is_past and extracted_date < now:
+            extracted_date = extracted_date + timedelta(days=1)
         base_date = extracted_date.replace(hour=9, minute=0, second=0, microsecond=0)
     else:
-        # Fallback to today if no date found
-        base_date = now.replace(hour=9, minute=0, second=0, microsecond=0)
+        # No date found - use None so time_utils can detect no time was specified
+        base_date = None
 
     # Use centralized time clarification logic from time_utils
-    return handle_time_clarification_logic(sentence, base_date=base_date, now=now)
+    time_result = handle_time_clarification_logic(sentence, base_date=base_date, now=now)
+    
+    # If clarification is needed, render the appropriate template with drive file info
+    if time_result.get("needs_clarification"):
+        # Check if this is a time range clarification
+        time_range = time_result.get("time_range")
+        if time_range:
+            return handle_time_range_clarification(
+                sentence,
+                time_range=time_range,
+                drive_file_id=drive_file_id, drive_file_name=drive_file_name, drive_file_url=drive_file_url
+            )
+        return handle_time_clarification(
+            sentence,
+            error_message=time_result["clarification_message"],
+            extracted_time=time_result.get("extracted_time"),
+            drive_file_id=drive_file_id, drive_file_name=drive_file_name, drive_file_url=drive_file_url
+        )
+    
+    # If no time was found or clarification needed, default to now + 30 mins
+    # Also default to now + 30 mins if no date was mentioned (user didn't specify a date)
+    if time_result.get("start_time") is None or not date_mentioned:
+        # Check if this is the default 9:00 AM time with no date specified
+        if not date_mentioned:
+            default_start = now + timedelta(minutes=30)
+            default_end = default_start + timedelta(minutes=30)
+            return {
+                "start_time": default_start,
+                "end_time": default_end,
+                "needs_clarification": False
+            }
+        # If date was mentioned but no time, default to 9:00 AM on that date
+        if time_result.get("start_time") is None:
+            default_start = now.replace(hour=9, minute=0, second=0, microsecond=0)
+            default_end = default_start + timedelta(minutes=30)
+            return {
+                "start_time": default_start,
+                "end_time": default_end,
+                "needs_clarification": False
+            }
+    
+    # Check if the resolved time is in the past
+    if time_result.get("start_time") and time_result["start_time"] < now:
+        # Auto-correct to tomorrow at same time
+        corrected_start = time_result["start_time"] + timedelta(days=1)
+        corrected_end = time_result["end_time"] + timedelta(days=1) if time_result.get("end_time") else corrected_start + timedelta(minutes=30)
+        return {
+            "start_time": corrected_start,
+            "end_time": corrected_end,
+            "needs_clarification": False
+        }
+    
+    return time_result
 
 
 def handle_meal_time_clarification(original_sentence: str, error_message: str = None, meals_to_avoid: list = None, drive_file_id=None, drive_file_name=None, drive_file_url=None):

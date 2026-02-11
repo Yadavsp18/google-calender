@@ -39,23 +39,16 @@ def handle_create_meeting(sentence, service, drive_file_id=None, drive_file_name
                                                drive_file_url=drive_file_url)
     
     # Handle time ambiguity and defaulting
-    time_result = handle_time_clarification_wrapper(sentence)
+    time_result = handle_time_clarification_wrapper(
+        sentence,
+        drive_file_id=drive_file_id,
+        drive_file_name=drive_file_name,
+        drive_file_url=drive_file_url
+    )
     
-    if time_result["needs_clarification"]:
-        # Check if this is a time range clarification
-        time_range = time_result.get("time_range")
-        if time_range:
-            return handle_time_range_clarification(
-                sentence,
-                time_range=time_range,
-                drive_file_id=drive_file_id, drive_file_name=drive_file_name, drive_file_url=drive_file_url
-            )
-        return handle_time_clarification(
-            sentence, 
-            error_message=time_result["clarification_message"],
-            extracted_time=time_result.get("extracted_time"),
-            drive_file_id=drive_file_id, drive_file_name=drive_file_name, drive_file_url=drive_file_url
-        )
+    # If time_result is a rendered template (clarification needed), return it directly
+    if hasattr(time_result, 'template_name') or '<html>' in str(time_result):
+        return time_result
     
     # Use resolved times if available
     if time_result["start_time"] and time_result["end_time"]:
@@ -214,6 +207,7 @@ def _execute_create_meeting(details, service, drive_file_id=None, drive_file_nam
             attendees=", ".join([a.get('email', '') for a in event_attendees]) if event_attendees else "",
             hangout_link=hangout_link,
             html_link=html_link,
+            meeting_mode=details.get('mode', 'online'),
             message_type="success")
         
     except Exception as e:

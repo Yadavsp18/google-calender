@@ -9,6 +9,7 @@ from dateutil.parser import parse as date_parse
 import re
 
 from services.calendar import load_email_book, find_matching_events, update_calendar_event
+from modules.summary import extract_meeting_title, is_update_sentence
 from modules.meeting_extractor import extract_meeting_title, extract_attendees, load_email_book as load_book
 from modules.date_utils import extract_date
 from modules.time_utils import handle_time_clarification_logic
@@ -26,8 +27,13 @@ def extract_update_details(sentence: str, email_book: list = None) -> dict:
     # Extract action intent
     intent_info = extract_action_intent(sentence)
     
-    # Extract meeting identifier (title or person)
-    meeting_identifier = extract_meeting_title(sentence)
+    # Check if this is an update sentence - don't try to extract new meeting title
+    if is_update_sentence(sentence_lower):
+        meeting_identifier = ""
+        print(f"DEBUG: Detected update sentence - not extracting new title")
+    else:
+        # Only extract title for non-update sentences
+        meeting_identifier = extract_meeting_title(sentence)
     
     # Extract attendees
     attendees = extract_attendees(sentence, email_book)
@@ -165,6 +171,25 @@ def handle_update_meeting(sentence: str, service):
     }
     session['extraction_done'] = True
     
+    # Check if user specified a new date/time
+    date_mentioned = update_details.get('date_changed', False)
+    time_mentioned = update_details.get('time_changed', False)
+    user_specified_date = date_mentioned or time_mentioned
+    
+    # CRITICAL: Set user_specified_date flag when user provides new date/time
+    # This prevents using original date instead of user-specified date
+    if user_specified_date:
+        session['user_specified_date'] = True
+        
+        # Store the extracted date for use when user selects an event
+        extracted_date = update_details.get('new_date')
+        if extracted_date:
+            session['update_new_date'] = {
+                'year': extracted_date.year,
+                'month': extracted_date.month,
+                'day': extracted_date.day,
+            }
+    
     if len(matching_events) == 1:
         return _apply_update_to_event(
             matching_events[0], 
@@ -190,6 +215,12 @@ def _apply_update_to_event(original_event: dict, update_details: dict, time_resu
     if original_start and original_end:
         original_duration = (original_end - original_start).total_seconds() / 60
     
+    # Always preserve original summary and description unless explicitly changed
+    existing_summary = original_event.get('summary', '')
+    existing_description = original_event.get('description', '')
+    existing_location = original_event.get('location', '')
+    existing_attendees = original_event.get('attendees', [])
+    
     new_start = None
     new_end = None
     
@@ -199,6 +230,14 @@ def _apply_update_to_event(original_event: dict, update_details: dict, time_resu
     resolved_end = time_result.get('end_time')
     preserve_time = update_details.get('preserve_time', True)
     
+    # Debug output
+    print(f"DEBUG: _apply_update_to_event:")
+    print(f"  extracted_date = {extracted_date}")
+    print(f"  preserve_date = {preserve_date}")
+    print(f"  resolved_start = {resolved_start}")
+    print(f"  resolved_end = {resolved_end}")
+    print(f"  preserve_time = {preserve_time}")
+    
     if not preserve_date and extracted_date and resolved_start:
         new_start = extracted_date.replace(
             hour=resolved_start.hour,
@@ -207,6 +246,7 @@ def _apply_update_to_event(original_event: dict, update_details: dict, time_resu
             microsecond=0,
             tzinfo=resolved_start.tzinfo
         )
+        print(f"  Using extracted_date with resolved time: {new_start}")
     elif not preserve_time and resolved_start and original_start:
         new_start = original_start.replace(
             hour=resolved_start.hour,
@@ -214,9 +254,11 @@ def _apply_update_to_event(original_event: dict, update_details: dict, time_resu
             second=0,
             microsecond=0
         )
+        print(f"  Using original date with new time: {new_start}")
     elif resolved_start and resolved_end:
         new_start = resolved_start
         new_end = resolved_end
+        print(f"  Using resolved times directly: {new_start} - {new_end}")
     
     if new_start:
         if update_details.get('duration_changed') and update_details.get('duration_min'):
@@ -230,6 +272,23 @@ def _apply_update_to_event(original_event: dict, update_details: dict, time_resu
     
     update_payload = {}
     
+    # Always preserve original summary (unless explicitly changed)
+    if existing_summary:
+        update_payload['summary'] = existing_summary
+    
+    # Preserve description (unless explicitly changed)
+    if existing_description:
+        update_payload['description'] = existing_description
+    
+    # Preserve location (unless explicitly changed)
+    if existing_location:
+        update_payload['location'] = existing_location
+    
+    # Preserve attendees (unless explicitly changed)
+    if existing_attendees:
+        update_payload['attendees'] = existing_attendees
+    
+    # Apply date/time changes
     if new_start:
         from datetime import timezone as tz
         if new_start.tzinfo is None:
@@ -242,27 +301,7 @@ def _apply_update_to_event(original_event: dict, update_details: dict, time_resu
             new_end = new_end.replace(tzinfo=tz.utc)
         update_payload['end'] = {'dateTime': new_end.isoformat()}
     
-    # Preserve unchanged fields
-    if not update_details.get('same_attendees'):
-        existing_attendees = original_event.get('attendees', [])
-        if existing_attendees:
-            update_payload['attendees'] = existing_attendees
-    
-    if not update_details.get('same_meeting_phrase'):
-        existing_summary = original_event.get('summary', '')
-        if existing_summary and not update_details.get('meeting_identifier'):
-            update_payload['summary'] = existing_summary
-        elif update_details.get('meeting_identifier'):
-            update_payload['summary'] = update_details['meeting_identifier']
-    
-    if not update_details.get('same_meeting_phrase'):
-        existing_description = original_event.get('description', '')
-        if existing_description:
-            update_payload['description'] = existing_description
-    
-    existing_location = original_event.get('location', '')
-    if existing_location and not update_details.get('same_location'):
-        update_payload['location'] = existing_location
+    print(f"DEBUG: update_payload = {update_payload}")
     
     result = update_calendar_event(event_id, update_payload)
     
@@ -302,6 +341,11 @@ def _show_update_selection(matching_events: list, update_details: dict, sentence
     session['update_details'] = update_details
     session['extraction_done'] = True
     
+    # Check if user specified a new date/time
+    date_mentioned = update_details.get('date_changed', False)
+    time_mentioned = update_details.get('time_changed', False)
+    user_specified_date = date_mentioned or time_mentioned
+    
     # Store resolved time if available
     resolved_time = session.get('resolved_time', {})
     session['update_event_data'] = {
@@ -311,6 +355,20 @@ def _show_update_selection(matching_events: list, update_details: dict, sentence
     session['update_new_start'] = resolved_time.get('start')
     session['update_new_end'] = resolved_time.get('end')
     session['original_dates'] = []
+    
+    # CRITICAL: Set user_specified_date flag when user provides new date/time
+    # This prevents using original date instead of user-specified date
+    if user_specified_date:
+        session['user_specified_date'] = True
+        
+        # Store the extracted date for use when user selects an event
+        extracted_date = update_details.get('new_date')
+        if extracted_date:
+            session['update_new_date'] = {
+                'year': extracted_date.year,
+                'month': extracted_date.month,
+                'day': extracted_date.day,
+            }
     
     return render_template('update_select.html', 
         events=formatted_events, 
@@ -369,7 +427,7 @@ def _show_update_success(updated_event: dict):
     attachments_list = [a.get('title', '') for a in event_attachments]
     attachments_str = ", ".join(attachments_list) if attachments_list else ""
     
-    # Build detailed bot response matching meeting_details.html format
+    # Build detailed bot response showing the updated event title
     bot_response_parts = [f"✅ Meeting '{event_summary}' has been updated successfully!"]
     bot_response_parts.append(f"Title: {event_summary}")
     bot_response_parts.append(f"📅 Start: {formatted_start}")
@@ -394,8 +452,12 @@ def _show_update_success(updated_event: dict):
         message_type="success"
     )
     
+    # Use the updated event summary as the title
+    # Detect if meeting is offline based on location
+    meeting_mode = 'offline' if event_location and 'meet.google.com' not in event_location and 'Online' not in event_location else 'online'
+    
     return render_template('meeting_details.html',
-        title="Meeting Updated",
+        title=event_summary,  # Show the updated event title
         icon="✅",
         message=f"Meeting '{event_summary}' has been updated successfully!",
         show_details=True,
@@ -404,10 +466,11 @@ def _show_update_success(updated_event: dict):
         start=formatted_start,
         end=formatted_end,
         location=event_location,
-        description=event_description,
+        description=event_description,  # Pass description
         attachments=event_attachments,
         attendees=", ".join([a.get('email', '') for a in event_attendees]) if event_attendees else "",
         hangout_link=hangout_link,
         html_link=html_link,
+        meeting_mode=meeting_mode,
         message_type="success",
         action="update")
