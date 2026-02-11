@@ -674,26 +674,34 @@
             dropdown.classList.remove('show');
             
             if (source === 'system files') {
+                console.log('DEBUG: selectFileSource - system files selected');
                 // Open system file picker
                 const fileInput = document.getElementById('systemFileInput');
+                console.log('DEBUG: Existing fileInput:', fileInput);
                 if (fileInput) {
+                    console.log('DEBUG: Clicking existing fileInput');
                     fileInput.click();
                 } else {
+                    console.log('DEBUG: Creating new file input');
                     // Create hidden file input if it doesn't exist
                     const input = document.createElement('input');
                     input.type = 'file';
                     input.id = 'systemFileInput';
                     input.style.display = 'none';
                     document.body.appendChild(input);
+                    console.log('DEBUG: New fileInput created, clicking...');
                     input.click();
+                    console.log('DEBUG: input.click() called');
                     
                     // Handle file selection
                     input.addEventListener('change', function(e) {
-                        console.log('File input change event fired');
-                        console.log('Files:', this.files.length);
+                        console.log('DEBUG: File input change event fired');
+                        console.log('DEBUG: Files:', this.files.length);
                         if (this.files.length > 0) {
-                            console.log('Selected file:', this.files[0].name);
+                            console.log('DEBUG: Selected file:', this.files[0].name);
                             addFile(this.files[0]);
+                        } else {
+                            console.log('DEBUG: No files selected');
                         }
                     });
                 }
@@ -1208,10 +1216,10 @@
                 </div>`;
                 messageHtml = text + fileInfo;
                 
-                // Clear the pending file
+                // Clear the pending file display, but KEEP pendingFile for upload
                 const fileDiv = document.querySelector('.file-attachment:not(.sent-file)');
                 if (fileDiv) fileDiv.remove();
-                window.pendingFile = null;
+                // NOTE: We do NOT set window.pendingFile = null here - it's used in the upload below
             }
             
             addMessage(messageHtml, true);
@@ -1222,23 +1230,18 @@
             // Show typing indicator
             addTypingIndicator();
             
-            // Check if it's an NLP route
-            if (text.toLowerCase().startsWith('create') || 
-                text.toLowerCase().startsWith('schedule') ||
-                text.toLowerCase().startsWith('meeting') ||
-                text.toLowerCase().startsWith('book') ||
-                text.toLowerCase().startsWith('add') ||
-                text.toLowerCase().startsWith('cancel') ||
-                text.toLowerCase().startsWith('delete') ||
-                text.toLowerCase().startsWith('update') ||
-                text.toLowerCase().startsWith('change') ||
-                text.toLowerCase().startsWith('move') ||
-                text.toLowerCase().startsWith('reschedule') ||
-                text.toLowerCase().startsWith('fix') ||
-                text.toLowerCase().startsWith('show') ||
-                text.toLowerCase().startsWith('list') ||
-                text.toLowerCase().startsWith('get') ||
-                text.toLowerCase().startsWith('events')) {
+            // Check if it's an NLP route (action keywords that should go to /nlp_create)
+            const lowerText = text.toLowerCase();
+            const actionKeywords = [
+                'create', 'schedule', 'meeting', 'book', 'add', 
+                'cancel', 'delete', 'drop', 'remove', 'abort', 'scrap', 'void', 'nullify',
+                'update', 'change', 'modify', 'edit', 'replace', 'switch', 'adjust', 'amend', 'alter',
+                'move', 'postpone', 'push', 'reschedule', 'shift', 'bring',
+                'fix', 'show', 'list', 'get', 'events'
+            ];
+            const isNlpRoute = actionKeywords.some(keyword => lowerText.startsWith(keyword));
+            
+            if (isNlpRoute) {
                 
                 // Submit to NLP endpoint
                 try {
@@ -1305,6 +1308,9 @@
                         } else {
                             // This is a local file - upload it to Google Drive
                             console.log('DEBUG: Uploading local file to Drive');
+                            console.log('DEBUG: File name:', window.pendingFile.name);
+                            console.log('DEBUG: File content length:', window.pendingFile.content ? window.pendingFile.content.length : 'undefined');
+                            console.log('DEBUG: File type:', window.pendingFile.type);
                             
                             try {
                                 const driveFormData = new FormData();
@@ -1314,13 +1320,16 @@
                                     driveFormData.append('file_type', window.pendingFile.type);
                                 }
                                 
-                                console.log('DEBUG: Sending upload request to /api/drive/upload');
+                                console.log('DEBUG: FormData created, sending upload request to /api/drive/upload');
+                                console.log('DEBUG: Fetch URL:', '/api/drive/upload');
+                                
                                 const driveResponse = await fetch('/api/drive/upload', {
                                     method: 'POST',
                                     body: driveFormData
                                 });
                                 
                                 console.log('DEBUG: Upload response status:', driveResponse.status);
+                                console.log('DEBUG: Upload response ok:', driveResponse.ok);
                                 
                                 if (driveResponse.ok) {
                                     const driveData = await driveResponse.json();
@@ -1329,7 +1338,8 @@
                                     if (driveData.success && driveData.file) {
                                         driveFileId = driveData.file.id || '';
                                         driveFileName = driveData.file.name || window.pendingFile.name;
-                                        driveLink = driveData.file.webViewLink || '';
+                                        // Use webContentLink for attachments (direct download)
+                                        driveLink = driveData.file.webContentLink || driveData.file.webViewLink || '';
                                         console.log('DEBUG: Drive file uploaded:', driveFileName, driveFileId);
                                         
                                         // Update file display with link
@@ -1347,17 +1357,28 @@
                                         console.error('Drive upload failed:', driveData.error);
                                     }
                                 } else {
+                                    const errorText = await driveResponse.text();
                                     console.error('Upload request failed with status:', driveResponse.status);
+                                    console.error('Error response:', errorText);
                                 }
                             } catch (driveError) {
-                                console.error('Error uploading to Drive:', driveError);
+                                console.error('ERROR: Exception in Drive upload:', driveError);
+                                console.error('Error name:', driveError.name);
+                                console.error('Error message:', driveError.message);
+                                if (driveError.stack) {
+                                    console.error('Stack:', driveError.stack);
+                                }
                             }
                         }
                     }
                     
-                    // Append drive link to sentence and add file info to form
+                    // Append drive link to sentence (for description) - NOT as location
                     if (driveLink) {
-                        formData.set('sentence', text + ' (Attachment: ' + driveLink + ')');
+                        // Don't append to sentence if using Google Meet (avoid duplicate links)
+                        // The attachment will be shown separately in the event
+                        formData.set('sentence', text);
+                    } else {
+                        formData.set('sentence', text);
                     }
                     
                     // Add Drive file info to form if available
@@ -1377,6 +1398,12 @@
                     
                     const html = await response.text();
                     removeTypingIndicator();
+                    
+                    // Clear pendingFile after upload is complete
+                    if (window.pendingFile) {
+                        window.pendingFile = null;
+                        console.log('DEBUG: pendingFile cleared after upload');
+                    }
                     
                     // Check if response is a full page (like update_select.html or meeting_details.html)
                     // These templates have specific markers indicating full-page responses
