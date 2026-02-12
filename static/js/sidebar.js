@@ -3,6 +3,15 @@
 // ==========================================
 
 /**
+ * Escape HTML special characters
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
  * Toggle sidebar collapse/expand
  */
 function toggleSidebar() {
@@ -192,7 +201,18 @@ async function renderTodayChatHistory() {
                 // Add bot response if it exists
                 const msgDiv = document.createElement('div');
                 msgDiv.className = 'message bot';
-                msgDiv.innerHTML = chat.botMessage;
+                // Check if it contains HTML tags, if so render as HTML
+                if (/<[a-z][\s\S]*>/i.test(chat.botMessage)) {
+                    msgDiv.innerHTML = chat.botMessage;
+                } else {
+                    // Render plain text
+                    const lines = chat.botMessage.split('\n');
+                    let html = '';
+                    lines.forEach(line => {
+                        html += `<div style="margin: 4px 0;">${escapeHtml(line)}</div>`;
+                    });
+                    msgDiv.innerHTML = html;
+                }
                 chatMessages.appendChild(msgDiv);
             }
         });

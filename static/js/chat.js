@@ -208,6 +208,12 @@ function handleUpdateSelection(eventUrl) {
         }
     }
     
+    // Store the last user message before showing loading indicator
+    const userMessages = (chatMessagesEl || chatMessages).querySelectorAll('.message.user');
+    const lastUserMessage = userMessages.length > 0 
+        ? userMessages[userMessages.length - 1].textContent.trim() 
+        : 'Updated meeting';
+    
     // Show loading indicator
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'message bot';
@@ -235,6 +241,10 @@ function handleUpdateSelection(eventUrl) {
         if (html) {
             // Remove loading indicator
             loadingDiv.remove();
+            
+            // Store the HTML as-is for proper formatting
+            const botMessage = html;
+            
             // Insert the response HTML into chat
             (chatMessagesEl || chatMessages).insertAdjacentHTML('beforeend', html);
             
@@ -242,12 +252,9 @@ function handleUpdateSelection(eventUrl) {
             const scrollContainer = chatMessagesEl || chatMessages;
             scrollContainer.scrollTop = scrollContainer.scrollHeight;
             
-            // Save update result to chat history
+            // Save update result to chat history with HTML for proper formatting
             const today = new Date().toISOString().split('T')[0];
-            const updateResultEl = (chatMessagesEl || chatMessages).querySelector('.message.bot:last-child');
-            if (updateResultEl) {
-                addToChatHistory(today, 'Updated meeting', updateResultEl.outerHTML.trim(), 'success', '', true);
-            }
+            addToChatHistory(today, lastUserMessage, botMessage, 'success', '', true);
         }
     })
     .catch(error => {
@@ -261,6 +268,12 @@ function handleUpdateSelection(eventUrl) {
  * Handle delete event selection
  */
 async function handleDeleteSelection(eventId) {
+    // Store the last user message before showing loading indicator
+    const userMessages = chatMessages.querySelectorAll('.message.user');
+    const lastUserMessage = userMessages.length > 0 
+        ? userMessages[userMessages.length - 1].textContent.trim() 
+        : 'Cancelled meeting';
+    
     // Show loading indicator
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'message bot';
@@ -290,9 +303,9 @@ async function handleDeleteSelection(eventId) {
                 chatMessages.insertAdjacentHTML('beforeend', detailsHtml);
                 scrollToBottom();
                 
-                // Save to chat history
+                // Save to chat history with HTML for proper formatting
                 const today = new Date().toISOString().split('T')[0];
-                addToChatHistory(today, 'Cancelled meeting', detailsHtml, 'success', '', true);
+                addToChatHistory(today, lastUserMessage, detailsHtml, 'success', '', true);
                 
                 // Redirect if specified
                 if (data.redirect) {
@@ -316,6 +329,10 @@ async function handleDeleteSelection(eventId) {
             const messagesHtml = extractMessagesContent(html);
             chatMessages.insertAdjacentHTML('beforeend', messagesHtml);
             scrollToBottom();
+            
+            // Save to chat history with HTML
+            const today = new Date().toISOString().split('T')[0];
+            addToChatHistory(today, lastUserMessage, messagesHtml, 'success', '', true);
         }
     } catch (error) {
         loadingDiv.remove();

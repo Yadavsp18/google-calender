@@ -443,25 +443,7 @@ def update_event(event_id):
     print(f"event_id: {event_id}")
     print(f"update params: year={year}, month={month}, day={day}, hour={hour}, minute={minute}")
     
-    # Build new date/time from query parameters
-    new_start = None
-    new_end = None
-    
-    if year and month and day:
-        # User specified a new date
-        from datetime import timezone as tz
-        if hour is not None and minute is not None:
-            new_start = datetime(year, month, day, hour, minute, tzinfo=tz.utc)
-            new_end = new_start + timedelta(minutes=30)
-        else:
-            # Default to 9 AM if time not specified
-            new_start = datetime(year, month, day, 9, 0, tzinfo=tz.utc)
-            new_end = new_start + timedelta(minutes=30)
-    elif hour is not None and minute is not None:
-        # User specified new time - need to get original date from event
-        pass
-    
-    # Get the original event
+    # Get the original event FIRST (needed for time preservation)
     try:
         original_event = service.events().get(calendarId='primary', eventId=event_id).execute()
     except Exception as e:
@@ -485,6 +467,44 @@ def update_event(event_id):
     existing_location = original_event.get('location', '')
     existing_attendees = original_event.get('attendees', [])
     
+    # Build new date/time from query parameters
+    new_start = None
+    new_end = None
+    
+    if year and month and day:
+        # User specified a new date
+        from datetime import timezone as tz
+        if hour is not None and minute is not None:
+            new_start = datetime(year, month, day, hour, minute, tzinfo=tz.utc)
+            new_end = new_start + timedelta(minutes=30)
+        elif original_start:
+            # Preserve original event's time on the new date
+            new_start = original_start.replace(
+                year=year, month=month, day=day, second=0, microsecond=0
+            )
+            # Calculate duration from original event
+            if original_end:
+                duration = (original_end - original_start).total_seconds() / 60
+                new_end = new_start + timedelta(minutes=duration)
+            else:
+                new_end = new_start + timedelta(minutes=30)
+        else:
+            # Default to 9 AM if time not specified and no original event time
+            new_start = datetime(year, month, day, 9, 0, tzinfo=tz.utc)
+            new_end = new_start + timedelta(minutes=30)
+    elif hour is not None and minute is not None:
+        # User specified new time - need to get original date from event
+        if original_start:
+            from datetime import timezone as tz
+            new_start = original_start.replace(hour=hour, minute=minute, second=0, microsecond=0, tzinfo=tz.utc)
+            
+            # Calculate duration
+            if original_end:
+                duration = (original_end - original_start).total_seconds() / 60
+                new_end = new_start + timedelta(minutes=duration)
+            else:
+                new_end = new_start + timedelta(minutes=30)
+    
     # Build the update payload
     update_payload = {}
     
@@ -499,20 +519,6 @@ def update_event(event_id):
     
     # Apply date/time changes
     if new_start:
-        update_payload['start'] = {'dateTime': new_start.isoformat()}
-        update_payload['end'] = {'dateTime': new_end.isoformat()}
-    elif hour is not None and minute is not None and original_start:
-        # Keep original date, change time
-        from datetime import timezone as tz
-        new_start = original_start.replace(hour=hour, minute=minute, second=0, microsecond=0, tzinfo=tz.utc)
-        
-        # Calculate duration
-        if original_end:
-            duration = (original_end - original_start).total_seconds() / 60
-            new_end = new_start + timedelta(minutes=duration)
-        else:
-            new_end = new_start + timedelta(minutes=30)
-        
         update_payload['start'] = {'dateTime': new_start.isoformat()}
         update_payload['end'] = {'dateTime': new_end.isoformat()}
     
@@ -540,180 +546,86 @@ def update_event(event_id):
         event_location = updated_event.get('location', '')
         event_attendees = updated_event.get('attendees', [])
         event_attachments = updated_event.get('attachments', [])
-    
-    # Rebuild event with original date preserved
-    if new_start_str and new_end_str:
-        try:
-            from datetime import timezone as tz
-            new_start_dt = date_parse(new_start_str)
-            new_end_dt = date_parse(new_end_str)
-            
-            # Make timezone-aware if not already
-            if new_start_dt.tzinfo is None:
-                new_start_dt = new_start_dt.replace(tzinfo=tz.utc)
-            if new_end_dt.tzinfo is None:
-                new_end_dt = new_end_dt.replace(tzinfo=tz.utc)
-            
-            # Find the original date or use user-specified date
-            user_specified_date = session.get('user_specified_date', False)
-            if user_specified_date:
-                # Use the user-specified date (from extracted date in the sentence)
-                user_new_date = session.get('update_new_date', {})
-                if user_new_date:
-                    new_start_dt = new_start_dt.replace(
-                        year=user_new_date.get('year', new_start_dt.year),
-                        month=user_new_date.get('month', new_start_dt.month),
-                        day=user_new_date.get('day', new_start_dt.day)
-                    )
-                    new_end_dt = new_end_dt.replace(
-                        year=user_new_date.get('year', new_end_dt.year),
-                        month=user_new_date.get('month', new_end_dt.month),
-                        day=user_new_date.get('day', new_end_dt.day)
-                    )
-                    print(f"DEBUG: Using user-specified date: {new_start_dt.date()}")
-            elif original_dates and original_dates[0]:
-                # Only use original date if user didn't specify a new date
-                original_date = date_parse(original_dates[0])
-                new_start_dt = new_start_dt.replace(
-                    year=original_date.year,
-                    month=original_date.month,
-                    day=original_date.day
-                )
-                new_end_dt = new_end_dt.replace(
-                    year=original_date.year,
-                    month=original_date.month,
-                    day=original_date.day
-                )
-            
-            # Rebuild update_data with correct datetime
-            update_data['start'] = new_start_dt
-            update_data['end'] = new_end_dt
-            
-            # Debug print
-            print(f"DEBUG: update_data['start'] = {update_data['start']}")
-            print(f"DEBUG: update_data['end'] = {update_data['end']}")
-            
-            # Rebuild the event resource
-            from .utils import build_event_resource
-            update_data = build_event_resource(update_data, meet_link)
-            
-            # Debug print
-            print(f"DEBUG: Built event start = {update_data.get('start')}")
-            print(f"DEBUG: Built event end = {update_data.get('end')}")
-        except Exception as e:
-            print(f"Error rebuilding event: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    try:
-        from services.calendar import update_calendar_event
-        result = update_calendar_event(event_id, update_data)
         
-        session.pop('update_event_data', None)
-        session.pop('update_meet_link', None)
-        session.pop('update_new_start', None)
-        session.pop('update_new_end', None)
-        session.pop('update_new_date', None)
-        session.pop('original_dates', None)
-        session.pop('user_specified_date', None)
+        # Print all details to terminal for verification
+        print("\n" + "="*60)
+        print("MEETING UPDATED SUCCESSFULLY - ALL DETAILS")
+        print("="*60)
+        print(f"Summary:      {event_summary}")
+        print(f"Start:        {event_start}")
+        print(f"End:          {event_end}")
+        print(f"Location:     {event_location}")
+        print(f"Description:  {event_description}")
+        print(f"Attendees:    {[a.get('email', '') for a in event_attendees]}")
+        print(f"Attachments:  {[a.get('title', '') for a in event_attachments]}")
+        print(f"Google Meet:  {hangout_link}")
+        print(f"Calendar URL: {html_link}")
+        print("="*60 + "\n")
         
-        if result['success']:
-            updated_event = result.get('event', {})
-            hangout_link = updated_event.get('hangoutLink', meet_link)
-            html_link = updated_event.get('htmlLink', '')
-            event_summary = updated_event.get('summary', 'Meeting')
-            event_start = updated_event.get('start', {}).get('dateTime', '')
-            event_end = updated_event.get('end', {}).get('dateTime', '')
-            event_description = updated_event.get('description', '')
-            event_location = updated_event.get('location', '')
-            event_attendees = updated_event.get('attendees', [])
-            event_attachments = updated_event.get('attachments', [])
-            
-            # Print all details to terminal for verification
-            print("\n" + "="*60)
-            print("MEETING UPDATED SUCCESSFULLY - ALL DETAILS")
-            print("="*60)
-            print(f"Summary:      {event_summary}")
-            print(f"Start:        {event_start}")
-            print(f"End:          {event_end}")
-            print(f"Location:     {event_location}")
-            print(f"Description:  {event_description}")
-            print(f"Attendees:    {[a.get('email', '') for a in event_attendees]}")
-            print(f"Attachments:  {[a.get('title', '') for a in event_attachments]}")
-            print(f"Google Meet:  {hangout_link}")
-            print(f"Calendar URL: {html_link}")
-            print("="*60 + "\n")
-            
-            # Format a detailed message for chat
-            from datetime import datetime
-            from dateutil.parser import parse as date_parse
-            
-            formatted_start = ""
-            if event_start:
-                try:
-                    start_dt = date_parse(event_start)
-                    formatted_start = start_dt.strftime("%A, %B %d at %I:%M %p")
-                except:
-                    formatted_start = event_start
-            
-            formatted_end = ""
-            if event_end:
-                try:
-                    end_dt = date_parse(event_end)
-                    formatted_end = end_dt.strftime("%I:%M %p")
-                except:
-                    formatted_end = event_end
-            
-            attendees_list = [a.get('email', '') for a in event_attendees]
-            attendees_str = ", ".join(attendees_list) if attendees_list else ""
-            
-            attachments_list = [a.get('title', '') for a in event_attachments]
-            attachments_str = ", ".join(attachments_list) if attachments_list else ""
-            
-            # Build detailed bot response matching meeting_details.html format
-            bot_response_parts = [f"✅ Meeting '{event_summary}' has been updated successfully!"]
-            bot_response_parts.append(f"Title: {event_summary}")
-            bot_response_parts.append(f"📅 Start: {formatted_start}")
-            bot_response_parts.append(f"⏰ End: {formatted_end}")
-            if event_location:
-                bot_response_parts.append(f"📍 Location: {event_location}")
-            if attendees_str:
-                bot_response_parts.append(f"👥 Attendees: {attendees_str}")
-            if attachments_str:
-                bot_response_parts.append(f"📎 Attachments: {attachments_str}")
-            if hangout_link:
-                bot_response_parts.append(f"🔗 Google Meet: {hangout_link}")
-            if html_link:
-                bot_response_parts.append(f"📆 Calendar: {html_link}")
-            
-            bot_response = "\n".join(bot_response_parts)
-            
-            return render_template('meeting_details_standalone.html',
-                title="Meeting Updated",
-                icon="✅",
-                message=f"Meeting '{event_summary}' has been updated successfully!",
-                show_details=True,
-                event_json=updated_event,
-                summary=event_summary,
-                start=formatted_start,
-                end=formatted_end,
-                location=event_location,
-                description=event_description,
-                attachments=event_attachments,
-                attendees=", ".join([a.get('email', '') for a in event_attendees]) if event_attendees else "",
-                hangout_link=hangout_link,
-                html_link=html_link,
-                message_type="success",
-                action="update")
-        else:
-            return render_template('message_standalone.html',
-                title="Update Failed",
-                icon="❌",
-                message=result.get('error', 'Unknown error'),
-                message_type="error")
-    except Exception as e:
+        # Format a detailed message for chat
+        from datetime import datetime
+        from dateutil.parser import parse as date_parse
+        
+        formatted_start = ""
+        if event_start:
+            try:
+                start_dt = date_parse(event_start)
+                formatted_start = start_dt.strftime("%A, %B %d at %I:%M %p")
+            except:
+                formatted_start = event_start
+        
+        formatted_end = ""
+        if event_end:
+            try:
+                end_dt = date_parse(event_end)
+                formatted_end = end_dt.strftime("%I:%M %p")
+            except:
+                formatted_end = event_end
+        
+        attendees_list = [a.get('email', '') for a in event_attendees]
+        attendees_str = ", ".join(attendees_list) if attendees_list else ""
+        
+        attachments_list = [a.get('title', '') for a in event_attachments]
+        attachments_str = ", ".join(attachments_list) if attachments_list else ""
+        
+        # Build detailed bot response matching meeting_details.html format
+        bot_response_parts = [f"✅ Meeting '{event_summary}' has been updated successfully!"]
+        bot_response_parts.append(f"Title: {event_summary}")
+        bot_response_parts.append(f"📅 Start: {formatted_start}")
+        bot_response_parts.append(f"⏰ End: {formatted_end}")
+        if event_location:
+            bot_response_parts.append(f"📍 Location: {event_location}")
+        if attendees_str:
+            bot_response_parts.append(f"👥 Attendees: {attendees_str}")
+        if attachments_str:
+            bot_response_parts.append(f"📎 Attachments: {attachments_str}")
+        if hangout_link:
+            bot_response_parts.append(f"🔗 Google Meet: {hangout_link}")
+        if html_link:
+            bot_response_parts.append(f"📆 Calendar: {html_link}")
+        
+        bot_response = "\n".join(bot_response_parts)
+        
+        return render_template('meeting_details_standalone.html',
+            title="Meeting Updated",
+            icon="✅",
+            message=f"Meeting '{event_summary}' has been updated successfully!",
+            show_details=True,
+            event_json=updated_event,
+            summary=event_summary,
+            start=formatted_start,
+            end=formatted_end,
+            location=event_location,
+            description=event_description,
+            attachments=event_attachments,
+            attendees=", ".join([a.get('email', '') for a in event_attendees]) if event_attendees else "",
+            hangout_link=hangout_link,
+            html_link=html_link,
+            message_type="success",
+            action="update")
+    else:
         return render_template('message_standalone.html',
             title="Update Failed",
             icon="❌",
-            message=str(e),
+            message=result.get('error', 'Unknown error'),
             message_type="error")

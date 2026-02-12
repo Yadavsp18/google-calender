@@ -116,6 +116,7 @@ def api_save_chat():
         bot_message = data.get('botMessage')
         message_type = data.get('messageType', 'info')
         file_attachment = data.get('fileAttachment', '')
+        update_last = data.get('updateLast', False)
         
         if not date or not user_message:
             return jsonify({"success": False, "error": "Missing required fields"}), 400
@@ -128,16 +129,22 @@ def api_save_chat():
         if date not in chats:
             chats[date] = []
         
-        # Add new chat entry
-        chat_entry = {
-            "userMessage": user_message,
-            "botMessage": bot_message,
-            "messageType": message_type,
-            "fileAttachment": file_attachment,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-        
-        chats[date].append(chat_entry)
+        # Check if we should update the last entry instead of appending
+        if update_last and len(chats[date]) > 0:
+            # Update the last entry
+            chats[date][-1]['botMessage'] = bot_message
+            chats[date][-1]['messageType'] = message_type
+            chats[date][-1]['timestamp'] = datetime.now(timezone.utc).isoformat()
+        else:
+            # Add new chat entry
+            chat_entry = {
+                "userMessage": user_message,
+                "botMessage": bot_message,
+                "messageType": message_type,
+                "fileAttachment": file_attachment,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+            chats[date].append(chat_entry)
         
         # Save to file
         chat_data["chats"] = chats
