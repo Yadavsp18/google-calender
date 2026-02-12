@@ -9,7 +9,7 @@ Routes:
 - /delete_event/<event_id> - Delete specific event
 """
 
-from flask import Blueprint, request, render_template, session, redirect, jsonify
+from flask import Blueprint, request, render_template, session, redirect, jsonify, make_response
 import os
 import json
 from datetime import datetime, timezone
@@ -25,13 +25,6 @@ from .handlers import (
     handle_create_meeting,
     handle_update_meeting,
     handle_cancel_meeting
-)
-from modules.chat_logger import (
-    add_chat_message,
-    get_recent_chats,
-    get_chat_dates,
-    get_chats_by_date,
-    clear_daily_chat
 )
 from modules.action_utils import detect_action
 
@@ -89,97 +82,43 @@ meetings_bp = Blueprint('meetings', __name__)
 
 @meetings_bp.route('/')
 def index():
-    """Main page - redirect to auth or show chat based on authentication status."""
+    """Main page - show index.html with chat interface."""
     if not is_authenticated():
-        # Show login/auth page
-        return render_template('auth.html')
-    else:
-        # Get chat message from session and clear it
-        chat_message = session.pop('chat_message', None)
-        # Show chat page for authenticated users
-        return render_template('index.html', authenticated=True, chat_message=chat_message)
+        return redirect('/auth')
+    
+    # Check for action messages (cancelled, updated, etc.)
+    action_message = session.pop('last_action_message', None)
+    cancelled = request.args.get('cancelled', False)
+    cancel_failed = request.args.get('cancel_failed', False)
+    
+    return render_template('index.html', 
+                           authenticated=True,
+                           action_message=action_message,
+                           cancelled=cancelled,
+                           cancel_failed=cancel_failed)
 
 
 @meetings_bp.route('/auth')
 def auth_page():
     """Authentication page - show login button."""
-    if is_authenticated():
-        return redirect('/')
-    return render_template('auth.html')
+    response = make_response(render_template('auth.html'))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
 @meetings_bp.route('/logout', methods=['POST'])
 def logout():
     """Logout and clear credentials."""
-    import os
-    
-    # Delete the token file
-    TOKEN_FILE = os.path.join(os.path.dirname(__file__), '..', 'config', 'token.json')
-    if os.path.exists(TOKEN_FILE):
-        os.remove(TOKEN_FILE)
-    
-    return jsonify({'success': True})
+    # Import the auth logout function
+    from routes.auth import logout as auth_logout
+    return auth_logout()
 
 
 # =============================================================================
 # Chat History API Routes
 # =============================================================================
-
-@meetings_bp.route('/api/chat/dates')
-def api_chat_dates():
-    """API endpoint to get all dates with chat history."""
-    if not is_authenticated():
-        return jsonify({'error': 'Not authenticated'}), 401
-    dates = get_chat_dates()
-    return jsonify({'dates': dates})
-
-
-@meetings_bp.route('/api/chat/<date>')
-def api_chat_by_date(date):
-    """API endpoint to get chat history for a specific date."""
-    if not is_authenticated():
-        return jsonify({'error': 'Not authenticated'}), 401
-    chats = get_chats_by_date(date)
-    return jsonify({'date': date, 'chats': chats})
-
-
-@meetings_bp.route('/api/chat/today')
-def api_chat_today():
-    """API endpoint to get today's chat history."""
-    if not is_authenticated():
-        return jsonify({'error': 'Not authenticated'}), 401
-    today = datetime.now().strftime('%Y-%m-%d')
-    chats = get_chats_by_date(today)
-    return jsonify({'date': today, 'chats': chats})
-
-
-@meetings_bp.route('/api/chat/clear', methods=['POST'])
-def api_clear_chat():
-    """API endpoint to clear chat history for a specific date."""
-    if not is_authenticated():
-        return jsonify({'error': 'Not authenticated'}), 401
-    data = request.get_json() or {}
-    date = data.get('date', datetime.now().strftime('%Y-%m-%d'))
-    clear_daily_chat(date)
-    return jsonify({'success': True, 'date': date})
-
-
-@meetings_bp.route('/api/chat/add', methods=['POST'])
-def api_add_chat():
-    """API endpoint to add a chat message to history."""
-    if not is_authenticated():
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    data = request.get_json() or {}
-    user_message = data.get('user_message', '')
-    bot_response = data.get('bot_response', '')
-    message_type = data.get('message_type', 'info')
-    
-    # Add to server-side chat history
-    chat_entry = add_chat_message(user_message, bot_response, message_type)
-    
-    return jsonify({'success': True, 'chat': chat_entry})
-
 
 @meetings_bp.route('/api/drive/upload', methods=['POST'])
 def api_drive_upload():
@@ -271,21 +210,35 @@ def api_drive_file_info():
 
 
 @meetings_bp.route('/nlp_create', methods=['POST'])
-def nlp_create():
+def nlp_create():   
     """Create or cancel a meeting from natural language input."""
     service = get_calendar_service()
     
     if not service:
-        return render_template('message.html',
+        return render_template('message_standalone.html',
             title="Authentication Required",
             icon="🔐",
             message="Please connect your Google Calendar first.",
             message_type="warning"), 401
-    
     sentence = request.form.get('sentence', '').strip()
     
+    # Count words
+    word_count = len(sentence.split())
+
+    print(f"DEBUG: Word count = {word_count}")
+
+    # If sentence too short, ask for more details
+    if word_count <= 6:
+        return render_template('message_standalone.html',
+            title="More Details Required",
+            icon="📝",
+            message="Please provide detailed information about the event (date, time, attendees, etc.).",
+            message_type="warning")
+
+    
+    
     if not sentence:
-        return render_template('message.html',
+        return render_template('message_standalone.html',
             title="Missing Input",
             icon="⚠️",
             message="Please describe the meeting.",
@@ -367,73 +320,226 @@ def events():
 @meetings_bp.route('/delete_event/<event_id>')
 def delete_event(event_id):
     """Delete a specific event by ID."""
+    from dateutil.parser import parse as date_parse
+    
     print(f"DEBUG: delete_event called with event_id: {event_id}")
     if not is_authenticated():
         print("DEBUG: User not authenticated")
-        return render_template('auth.html')
+        return jsonify({
+            'success': False,
+            'error': 'Not authenticated',
+            'redirect': '/auth'
+        })
     
+    service = get_calendar_service()
+    if not service:
+        return jsonify({
+            'success': False,
+            'error': 'Not authenticated',
+            'redirect': '/auth'
+        })
+    
+    # First, get the event details before deleting
+    try:
+        event = service.events().get(calendarId='primary', eventId=event_id).execute()
+    except Exception as e:
+        print(f"DEBUG: Error getting event: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Could not find the event to delete.'
+        })
+    
+    # Extract event details
+    event_summary = event.get('summary', 'Meeting')
+    event_start = event.get('start', {}).get('dateTime', event.get('start', {}).get('date', ''))
+    event_end = event.get('end', {}).get('dateTime', event.get('end', {}).get('date', ''))
+    event_location = event.get('location', '')
+    event_attendees = event.get('attendees', [])
+    event_description = event.get('description', '')
+    
+    # Format times for display
+    start_formatted = ''
+    if event_start:
+        try:
+            start_dt = date_parse(event_start)
+            start_formatted = start_dt.strftime("%A, %B %d at %I:%M %p")
+        except Exception:
+            start_formatted = event_start
+    
+    end_formatted = ''
+    if event_end:
+        try:
+            end_dt = date_parse(event_end)
+            end_formatted = end_dt.strftime("%I:%M %p")
+        except Exception:
+            end_formatted = event_end
+    
+    attendees_list = [a.get('email', '') for a in event_attendees if a.get('email')]
+    attendees_str = ', '.join(attendees_list) if attendees_list else ''
+    
+    # Now delete the event
     print(f"DEBUG: Attempting to delete event: {event_id}")
     result = delete_calendar_event(event_id)
     print(f"DEBUG: Delete result: {result}")
     
     if result['success']:
-        # Add to chat history
-        add_chat_message(
-            user_message="",
-            bot_response=result['message'],
-            message_type="success"
-        )
-        session['chat_message'] = {
+        # Store message in session for display after redirect
+        session['last_action_message'] = {
             'type': 'success',
-            'title': 'Meeting Deleted',
-            'icon': '✅',
-            'message': result['message']
+            'title': 'Meeting Cancelled',
+            'icon': '🗑️',
+            'message': f"Meeting '{event_summary}' has been cancelled successfully!"
         }
+        session['cancelled'] = True
+        
+        return jsonify({
+            'success': True,
+            'title': 'Meeting Cancelled',
+            'icon': '🗑️',
+            'message': f"Meeting '{event_summary}' has been cancelled successfully!",
+            'redirect': '/'
+        })
     else:
-        # Add error to chat history
-        add_chat_message(
-            user_message="",
-            bot_response=result.get('error', 'Unknown error'),
-            message_type="error"
-        )
-        session['chat_message'] = {
+        session['last_action_message'] = {
             'type': 'error',
-            'title': 'Deletion Failed',
+            'title': 'Cancellation Failed',
             'icon': '❌',
             'message': result.get('error', 'Unknown error')
         }
-    
-    return redirect('/')
+        session['cancel_failed'] = True
+        
+        return jsonify({
+            'success': False,
+            'title': 'Cancellation Failed',
+            'icon': '❌',
+            'message': result.get('error', 'Unknown error'),
+            'redirect': '/'
+        })
 
 
 @meetings_bp.route('/update_event/<event_id>', methods=['GET', 'POST'])
 def update_event(event_id):
     """Update a specific event by ID."""
-    from datetime import datetime
+    from datetime import datetime, timezone, timedelta
     from dateutil.parser import parse as date_parse
     
     service = get_calendar_service()
     
     if not service:
-        return render_template('message.html',
+        return render_template('message_standalone.html',
             title="Authentication Required",
             icon="🔐",
             message="Please connect your Google Calendar first.",
             message_type="warning"), 401
     
-    # Get stored update data
-    original_dates = session.get('original_dates', [])
-    update_data = session.get('update_event_data', {})
-    meet_link = session.get('update_meet_link', '')
-    new_start_str = session.get('update_new_start')
-    new_end_str = session.get('update_new_end')
+    # Extract update parameters from query string
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+    day = request.args.get('day', type=int)
+    hour = request.args.get('hour', type=int)
+    minute = request.args.get('minute', type=int)
     
-    if not update_data:
-        return render_template('message.html',
+    print(f"\n=== DEBUG update_event ===")
+    print(f"event_id: {event_id}")
+    print(f"update params: year={year}, month={month}, day={day}, hour={hour}, minute={minute}")
+    
+    # Build new date/time from query parameters
+    new_start = None
+    new_end = None
+    
+    if year and month and day:
+        # User specified a new date
+        from datetime import timezone as tz
+        if hour is not None and minute is not None:
+            new_start = datetime(year, month, day, hour, minute, tzinfo=tz.utc)
+            new_end = new_start + timedelta(minutes=30)
+        else:
+            # Default to 9 AM if time not specified
+            new_start = datetime(year, month, day, 9, 0, tzinfo=tz.utc)
+            new_end = new_start + timedelta(minutes=30)
+    elif hour is not None and minute is not None:
+        # User specified new time - need to get original date from event
+        pass
+    
+    # Get the original event
+    try:
+        original_event = service.events().get(calendarId='primary', eventId=event_id).execute()
+    except Exception as e:
+        print(f"Error getting event: {e}")
+        return render_template('message_standalone.html',
+            title="Event Not Found",
+            icon="⚠️",
+            message="Could not find the event to update.",
+            message_type="error")
+    
+    # Extract original event details
+    original_start_str = original_event.get('start', {}).get('dateTime', original_event.get('start', {}).get('date', ''))
+    original_end_str = original_event.get('end', {}).get('dateTime', original_event.get('end', {}).get('date', ''))
+    
+    original_start = date_parse(original_start_str) if original_start_str else None
+    original_end = date_parse(original_end_str) if original_end_str else None
+    
+    # Preserve original details
+    existing_summary = original_event.get('summary', '')
+    existing_description = original_event.get('description', '')
+    existing_location = original_event.get('location', '')
+    existing_attendees = original_event.get('attendees', [])
+    
+    # Build the update payload
+    update_payload = {}
+    
+    if existing_summary:
+        update_payload['summary'] = existing_summary
+    if existing_description:
+        update_payload['description'] = existing_description
+    if existing_location:
+        update_payload['location'] = existing_location
+    if existing_attendees:
+        update_payload['attendees'] = existing_attendees
+    
+    # Apply date/time changes
+    if new_start:
+        update_payload['start'] = {'dateTime': new_start.isoformat()}
+        update_payload['end'] = {'dateTime': new_end.isoformat()}
+    elif hour is not None and minute is not None and original_start:
+        # Keep original date, change time
+        from datetime import timezone as tz
+        new_start = original_start.replace(hour=hour, minute=minute, second=0, microsecond=0, tzinfo=tz.utc)
+        
+        # Calculate duration
+        if original_end:
+            duration = (original_end - original_start).total_seconds() / 60
+            new_end = new_start + timedelta(minutes=duration)
+        else:
+            new_end = new_start + timedelta(minutes=30)
+        
+        update_payload['start'] = {'dateTime': new_start.isoformat()}
+        update_payload['end'] = {'dateTime': new_end.isoformat()}
+    
+    print(f"DEBUG: update_payload = {update_payload}")
+    
+    # Check if there's anything to update
+    if not update_payload or (not update_payload.get('start') and not update_payload.get('end')):
+        return render_template('message_standalone.html',
             title="No Update Data",
             icon="⚠️",
             message="No update information found. Please try again.",
             message_type="warning")
+    
+    from services.calendar import update_calendar_event
+    result = update_calendar_event(event_id, update_payload)
+    
+    if result['success']:
+        updated_event = result.get('event', {})
+        hangout_link = updated_event.get('hangoutLink', '')
+        html_link = updated_event.get('htmlLink', '')
+        event_summary = updated_event.get('summary', 'Meeting')
+        event_start = updated_event.get('start', {}).get('dateTime', '')
+        event_end = updated_event.get('end', {}).get('dateTime', '')
+        event_description = updated_event.get('description', '')
+        event_location = updated_event.get('location', '')
+        event_attendees = updated_event.get('attendees', [])
+        event_attachments = updated_event.get('attachments', [])
     
     # Rebuild event with original date preserved
     if new_start_str and new_end_str:
@@ -582,14 +688,7 @@ def update_event(event_id):
             
             bot_response = "\n".join(bot_response_parts)
             
-            # Add to chat history
-            add_chat_message(
-                user_message="",
-                bot_response=bot_response,
-                message_type="success"
-            )
-            
-            return render_template('meeting_details.html',
+            return render_template('meeting_details_standalone.html',
                 title="Meeting Updated",
                 icon="✅",
                 message=f"Meeting '{event_summary}' has been updated successfully!",
@@ -607,13 +706,13 @@ def update_event(event_id):
                 message_type="success",
                 action="update")
         else:
-            return render_template('message.html',
+            return render_template('message_standalone.html',
                 title="Update Failed",
                 icon="❌",
                 message=result.get('error', 'Unknown error'),
                 message_type="error")
     except Exception as e:
-        return render_template('message.html',
+        return render_template('message_standalone.html',
             title="Update Failed",
             icon="❌",
             message=str(e),

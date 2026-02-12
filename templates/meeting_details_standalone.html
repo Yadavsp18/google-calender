@@ -1,0 +1,96 @@
+<!-- Standalone meeting details for chat - no base.html -->
+<div class="message bot {{ message_type if message_type else '' }}">
+    {% if icon %}
+    <span class="message-icon">{{ icon }}</span>
+    {% endif %}
+    <div class="message-bubble">
+        <h3>{{ title }}</h3>
+        <p>{{ message }}</p>
+
+        {% if show_details %}
+        <div class="event-details">
+            {% if summary %}
+            <div class="detail-row">
+                <span class="detail-label">Meeting Title:</span>
+                <span class="detail-value">{{ summary }}</span>
+            </div>
+            {% endif %}
+
+            {% if start %}
+            <div class="detail-row">
+                <span class="detail-label">Start:</span>
+                <span class="detail-value">{{ start }}</span>
+            </div>
+            {% endif %}
+
+            {% if end %}
+            <div class="detail-row">
+                <span class="detail-label">End:</span>
+                <span class="detail-value">{{ end }}</span>
+            </div>
+            {% endif %}
+
+            {% if location %}
+            <div class="detail-row">
+                <span class="detail-label">Location:</span>
+                <span class="detail-value">
+                    {% if location.startswith('http') %}
+                    <a href="{{ location }}" target="_blank">{{ location }}</a>
+                    {% else %}
+                    {{ location }}
+                    {% endif %}
+                </span>
+            </div>
+            {% endif %}
+
+            {% if attendees %}
+            <div class="detail-row">
+                <span class="detail-label">Attendees:</span>
+                <span class="detail-value">{{ attendees }}</span>
+            </div>
+            {% endif %}
+
+            {% if description %}
+            <div class="detail-row">
+                <span class="detail-label">Description:</span>
+                <span class="detail-value">{{ description }}</span>
+            </div>
+            {% endif %}
+
+            {% if hangout_link and meeting_mode != 'offline' %}
+            <div class="detail-row">
+                <span class="detail-label">Google Meet:</span>
+                <span class="detail-value"><a href="{{ hangout_link }}" target="_blank">Join Meeting</a></span>
+            </div>
+            {% endif %}
+
+            {% if html_link %}
+            <div class="detail-row">
+                <span class="detail-label">Calendar:</span>
+                <span class="detail-value"><a href="{{ html_link }}" target="_blank">View in Google Calendar</a></span>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="action-buttons">
+            {% if hangout_link and meeting_mode != 'offline' %}
+            <a href="{{ hangout_link }}" target="_blank" class="primary">🎥 Join Meeting</a>
+            {% endif %}
+            {% if html_link %}
+            <a href="{{ html_link }}" target="_blank" class="secondary">📅 View in Calendar</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="quick-actions">
+            {% if action == 'update' %}
+            <button class="quick-action-btn" onclick="window.location.href='/'">🏠 Update Another Meeting</button>
+            {% elif action == 'cancel' %}
+            <button class="quick-action-btn" onclick="window.location.href='/'">🏠 Create Another Meeting</button>
+            {% else %}
+            <button class="quick-action-btn" onclick="window.location.href='/'">🏠 Create Another Meeting</button>
+            {% endif %}
+            <button class="quick-action-btn" onclick="window.location.href='/events'">📋 View All Events</button>
+        </div>
+    </div>
+</div>

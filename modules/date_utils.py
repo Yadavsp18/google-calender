@@ -125,11 +125,13 @@ def extract_date(text: str, base_dt: datetime = None) -> Tuple[Optional[datetime
         
         try:
             dt = datetime(year, month, day, tzinfo=today.tzinfo)
-            # If date has passed and no year was specified, use next year
-            if dt < today and not year_match:
-                dt = dt.replace(year=today.year + 1)
-            print(f"DEBUG: extract_date returning: {dt.date()}")
-            return dt, dt < today
+            # If date has passed and no year was specified, keep it as past
+            is_past = dt < today
+            if is_past and not year_match:
+                # Keep the date as past (don't move to next year)
+                pass
+            print(f"DEBUG: extract_date returning: {dt.date()}, is_past={is_past}")
+            return dt, is_past
         except ValueError:
             print(f"DEBUG: day_month_pattern ValueError, trying next pattern")
             pass
@@ -150,10 +152,12 @@ def extract_date(text: str, base_dt: datetime = None) -> Tuple[Optional[datetime
         
         try:
             dt = datetime(year, month, day, tzinfo=today.tzinfo)
-            # If date has passed and no year was specified, use next year
-            if dt < today and not year_match:
-                dt = dt.replace(year=today.year + 1)
-            return dt, dt < today
+            # If date has passed and no year was specified, keep it as past
+            is_past = dt < today
+            if is_past and not year_match:
+                # Keep the date as past (don't move to next year)
+                pass
+            return dt, is_past
         except ValueError:
             pass
 
@@ -250,10 +254,19 @@ def extract_date(text: str, base_dt: datetime = None) -> Tuple[Optional[datetime
             if has_next_week:
                 # "next week friday" means 7 days after this week's friday
                 days = days + 7
+            elif days == 0:
+                # Today is the weekday - use today
+                days = 0
+            elif days > 7:
+                # Weekday already passed this week, use next week
+                days = days
             else:
-                days = days or 7  # Default to next occurrence (7 days ahead)
+                # Weekday is in the future this week, use it
+                days = days
             dt = today + timedelta(days=days)
-            return dt, False
+            # Check if the weekday has already passed (for same day, is_past = False)
+            is_past = days == 0 and dt.date() < today.date()
+            return dt, is_past
 
     # ---------- 9. MONTH-LEVEL ----------
     if re.search(r'\bthis\s+month\b', text_lower):

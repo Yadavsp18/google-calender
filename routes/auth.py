@@ -49,8 +49,9 @@ def oauth_callback():
     
     try:
         credentials = exchange_code_for_credentials(request.url)
-        session['credentials'] = credentials_to_dict(credentials)
+        # Save credentials to file (not session)
         save_credentials_to_file(credentials)
+        print(f"DEBUG: Credentials saved to file: {TOKEN_FILE}")
         return redirect('/')
     except Exception as e:
         return render_template('message.html',
@@ -63,8 +64,37 @@ def oauth_callback():
 @auth_bp.route('/logout')
 def logout():
     """Logout and clear credentials."""
-    clear_credentials()
-    return redirect('/')
+    from flask import session
+    
+    print("DEBUG: Logout called")
+    print(f"DEBUG: Token file exists: {os.path.exists(TOKEN_FILE)}")
+    
+    # Clear only authentication-related session data (not chat history)
+    session.pop('state', None)
+    session.pop('update_sentence', None)
+    session.pop('update_details', None)
+    session.pop('resolved_time', None)
+    session.pop('extraction_done', None)
+    session.pop('user_specified_date', None)
+    session.pop('update_new_date', None)
+    session.pop('update_event_data', None)
+    session.pop('update_meet_link', None)
+    session.pop('update_new_start', None)
+    session.pop('update_new_end', None)
+    session.pop('original_dates', None)
+    
+    # Clear token file
+    if os.path.exists(TOKEN_FILE):
+        os.remove(TOKEN_FILE)
+        print(f"DEBUG: Removed token file: {TOKEN_FILE}")
+    
+    # Return a redirect page that auto-navigates to /auth
+    from flask import make_response
+    response = make_response('<!DOCTYPE html><html><head><title>Logging out...</title><meta http-equiv="refresh" content="0; url=/auth"></head><body><p>Logging out... <a href="/auth">Click here</a> if you are not redirected automatically.</p></body></html>')
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
 @auth_bp.route('/api/auth/token')
@@ -102,6 +132,82 @@ def get_token():
         return jsonify({
             'access_token': creds.token,
             'valid': creds.valid
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@auth_bp.route('/api/auth/check')
+def check_auth():
+    """Check if user is authenticated."""
+    import os
+    token_file = TOKEN_FILE
+    
+    if os.path.exists(token_file):
+        return jsonify({'authenticated': True})
+    else:
+        return jsonify({'authenticated': False})
+
+
+@auth_bp.route('/api/calendar/events')
+def get_calendar_events():
+    """Get calendar events for the authenticated user."""
+    from services.calendar import get_calendar_service
+    from datetime import datetime, timezone
+    import os
+    
+    token_file = TOKEN_FILE
+    
+    if not os.path.exists(token_file):
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        service = get_calendar_service()
+        if not service:
+            return jsonify({'error': 'Failed to get calendar service'}), 500
+        
+        # Fetch user's email from calendar list
+        calendars_result = service.calendarList().list().execute()
+        user_email = ''
+        for calendar in calendars_result.get('items', []):
+            if calendar.get('primary'):
+                user_email = calendar.get('id', '')
+                break
+        
+        # If no primary calendar found, try to get from calendar entry
+        if not user_email:
+            calendar_entry = service.calendars().get(calendarId='primary').execute()
+            user_email = calendar_entry.get('id', '')
+        
+        # Fetch events directly
+        now = datetime.now(timezone.utc)
+        events_result = service.events().list(
+            calendarId='primary',
+            timeMin=now.isoformat(),
+            maxResults=20,
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+        
+        events = events_result.get('items', [])
+        
+        # Format events for frontend
+        formatted_events = []
+        for event in events:
+            formatted_events.append({
+                'id': event.get('id'),
+                'summary': event.get('summary', 'Untitled Event'),
+                'start': event.get('start'),
+                'end': event.get('end'),
+                'location': event.get('location', ''),
+                'description': event.get('description', ''),
+                'attendees': event.get('attendees', [])
+            })
+        
+        return jsonify({
+            'events': formatted_events,
+            'count': len(formatted_events),
+            'user_email': user_email
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500

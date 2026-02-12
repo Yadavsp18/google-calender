@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+        .icon {
+            font-size: 60px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+        .message {
+            color: #666;
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .event-details {
+            background: #f5f5f5;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        .detail-row {
+            display: flex;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            color: #888;
+            font-size: 14px;
+            font-weight: 500;
+            margin-right: 10px;
+            min-width: 100px;
+        }
+        .detail-value {
+            color: #333;
+            font-size: 14px;
+            font-weight: 500;
+            flex: 1;
+        }
+        .detail-value a {
+            color: #5cc9f5;
+            text-decoration: none;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: #4285f4;
+            color: white;
+            border: none;
+        }
+        .btn-primary:hover {
+            background: #3367d6;
+        }
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+            border: none;
+            margin-top: 10px;
+        }
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        .actions {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% if icon %}
+        <div class="icon">{{ icon }}</div>
+        {% endif %}
+        <h1>{{ title }}</h1>
+        <p class="message">{{ message }}</p>
+        
+        {% if show_details and details %}
+        <div class="event-details">
+            {{ details|safe }}
+        </div>
+        {% endif %}
+        
+        <div class="actions">
+            <a href="/" class="btn btn-primary">Back to Home</a>
+            {% if show_events %}
+            <a href="/events" class="btn btn-secondary">View All Events</a>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

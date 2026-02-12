@@ -1,14 +1,3 @@
-{% extends "base.html" %}
-
-{% block title %}{{ title }}{% endblock %}
-
-{% block messages %}
-{% if show_user_message %}
-<div class="message user">
-    <div class="message-bubble user-bubble">{{ user_message }}</div>
-</div>
-{% endif %}
-
 <div class="message bot {{ message_type }}">
     {% if icon %}
     <span class="message-icon">{{ icon }}</span>
@@ -31,4 +20,3 @@
         </div>
     </div>
 </div>
-{% endblock %}

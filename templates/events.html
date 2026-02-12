@@ -12,14 +12,32 @@
         <div style="margin-top: 15px;">
             {% for event in events %}
             <div class="event-details">
-                <div><strong>{{ event.summary }}</strong></div>
-                <div><span class="label">🕐 {{ event.start }}</span></div>
+                <div class="detail-row">
+                    <span class="detail-icon">📋</span>
+                    <div class="detail-content">
+                        <div class="detail-label">Meeting Title</div>
+                        <div class="detail-value">{{ event.summary }}</div>
+                    </div>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-icon">🕐</span>
+                    <div class="detail-content">
+                        <div class="detail-label">Start</div>
+                        <div class="detail-value">{{ event.start }}</div>
+                    </div>
+                </div>
                 {% if event.description %}
-                <div><span class="label">📝 {{ event.description }}</span></div>
+                <div class="detail-row">
+                    <span class="detail-icon">📝</span>
+                    <div class="detail-content">
+                        <div class="detail-label">Description</div>
+                        <div class="description-box">{{ event.description }}</div>
+                    </div>
+                </div>
                 {% endif %}
-                <div style="margin-top: 10px;">
-                    <a href="/update_event/{{ event.id }}" style="color: #4285f4; margin-right: 15px;">✏️ Update</a>
-                    <a href="/delete_event/{{ event.id }}" style="color: #dc3545;">🗑️ Delete</a>
+                <div class="action-buttons" style="margin-top: 12px;">
+                    <a href="/update_event/{{ event.id }}" class="secondary">✏️ Update</a>
+                    <a href="/delete_event/{{ event.id }}" style="background-color: #5c1a1a; color: #e8c4c4; border-color: #8a2a2a;">🗑️ Delete</a>
                 </div>
             </div>
             {% endfor %}

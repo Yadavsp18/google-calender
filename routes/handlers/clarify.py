@@ -18,7 +18,7 @@ def handle_date_clarification(original_sentence: str, error_message: str = None,
         error_message = "The date you specified is in the past. Please enter a valid future date."
 
     return render_template(
-        'date_clarify.html',
+        'date_clarify_standalone.html',
         title="Invalid Date",
         icon="📅",
         error_message=error_message,
@@ -42,7 +42,7 @@ def handle_time_clarification(original_sentence: str, extracted_time: str = None
             error_message = "The time you specified is unclear. Please enter a valid time."
 
     return render_template(
-        'time_clarify.html',
+        'time_clarify_standalone.html',
         title="Clarify Time",
         icon="⏰",
         error_message=error_message,
@@ -188,7 +188,7 @@ def handle_meal_time_clarification(original_sentence: str, error_message: str = 
             meal_options.append({'label': f"Before {meal.title()} ({times['before']})", 'time': times['before']})
             meal_options.append({'label': f"After {meal.title()} ({times['after']})", 'time': times['after']})
     
-    return render_template('meal_time_clarify.html',
+    return render_template('meal_time_clarify_standalone.html',
         title="Meal Time Clarification",
         icon="🍽️",
         error_message=error_message,
@@ -218,24 +218,20 @@ def handle_time_range_clarification(original_sentence: str, time_range: str, dri
         end_hour = int(range_match.group(2))
         ampm = range_match.group(3).upper()
         
-        start_options = []
-        end_options = []
+        time_options = []
         
         # Generate AM/PM swap options
         for option_ampm in ['AM', 'PM']:
             if option_ampm != ampm:
-                start_str = f"{start_hour}:00 {option_ampm}"
-                end_str = f"{end_hour}:00 {option_ampm}"
-                start_options.append(start_str)
-                end_options.append(end_str)
+                time_str = f"{start_hour}:00 {option_ampm} - {end_hour}:00 {option_ampm}"
+                time_options.append(time_str)
         
         return render_template('time_range_clarify.html',
             title="Clarify Time Range",
             icon="⏰",
             original_sentence=original_sentence,
             time_range=time_range,
-            start_options=start_options,
-            end_options=end_options,
+            time_options=time_options,
             current_time=current_time,
             drive_file_id=drive_file_id or '',
             drive_file_name=drive_file_name or '',

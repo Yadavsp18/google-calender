@@ -3,6 +3,7 @@
 {% block title %}Authentication Required{% endblock %}
 
 {% block messages %}
+<div id="authPage" style="display: none;"></div>
 <div class="message bot">
     <span class="message-icon">🔐</span>
     <div class="message-bubble">
@@ -30,4 +31,12 @@
         </p>
     </div>
 </div>
+<script>
+    // Check authentication on page load - wait for scripts to load
+    if (typeof window.redirectIfAuthenticated === 'function') {
+        redirectIfAuthenticated();
+    } else {
+        window.addEventListener('load', redirectIfAuthenticated);
+    }
+</script>
 {% endblock %}

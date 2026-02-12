@@ -1,0 +1,53 @@
+<!-- Standalone update select for chat - no base.html -->
+{% if original_sentence %}
+<div class="message user">
+    <div class="message-bubble user-bubble">{{ original_sentence }}</div>
+</div>
+{% endif %}
+
+<div class="message bot">
+    <span class="message-icon">🔄</span>
+    <div class="message-bubble">
+        <h3>Select Meeting to Update</h3>
+        <p>Multiple meetings found. Please select one to update:</p>
+        
+        {% if events %}
+        <div class="event-list">
+            {% for event in events %}
+            <div class="event-item" data-event-url="{{ event.url }}" data-action="update">
+                <div class="event-summary">
+                    <strong>{{ event.summary }}</strong>
+                </div>
+                {% if event.start %}
+                <div class="event-time">
+                    <span>🕐</span> {{ event.start }}{% if event.end %} - {{ event.end }}{% endif %}
+                </div>
+                {% endif %}
+                {% if event.location %}
+                <div class="event-location">
+                    <span>📍</span> {{ event.location }}
+                </div>
+                {% endif %}
+                {% if event.attendees %}
+                <div class="event-attendees">
+                    <span>👥</span> {{ event.attendees }}
+                </div>
+                {% endif %}
+                {% if event.description %}
+                <div class="event-description">
+                    <span>📝</span> {{ event.description }}
+                </div>
+                {% endif %}
+                <div class="event-action" style="color: #4285f4;">
+                    <span>✏️</span> Update This Meeting
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <div class="quick-actions" style="margin-top: 20px;">
+            <button class="quick-action-btn" onclick="window.location.href='/';">Back to Home</button>
+        </div>
+    </div>
+</div>

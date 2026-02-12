@@ -138,7 +138,7 @@ def handle_update_meeting(sentence: str, service):
     matching_events = find_matching_events(service, sentence, email_book)
     
     if not matching_events:
-        return render_template('message.html',
+        return render_template('message_standalone.html',
             title="No Matching Events",
             icon="🔍",
             message="No meetings matching your request were found to update.",
@@ -308,7 +308,7 @@ def _apply_update_to_event(original_event: dict, update_details: dict, time_resu
     if result['success']:
         return _show_update_success(result.get('event', {}))
     else:
-        return render_template('message.html',
+        return render_template('message_standalone.html',
             title="Update Failed",
             icon="❌",
             message=result.get('error', 'Unknown error'),
@@ -318,6 +318,24 @@ def _apply_update_to_event(original_event: dict, update_details: dict, time_resu
 def _show_update_selection(matching_events: list, update_details: dict, sentence: str):
     """Show event selection when multiple matches found."""
     formatted_events = []
+    
+    # Extract update parameters to pass via URL
+    extracted_date = update_details.get('new_date')
+    resolved_time = session.get('resolved_time', {})
+    
+    # Build query string with update parameters
+    query_params = []
+    if extracted_date:
+        query_params.append(f"year={extracted_date.year}")
+        query_params.append(f"month={extracted_date.month}")
+        query_params.append(f"day={extracted_date.day}")
+    
+    resolved_start = resolved_time.get('start_time')
+    if resolved_start:
+        query_params.append(f"hour={resolved_start.hour}")
+        query_params.append(f"minute={resolved_start.minute}")
+    
+    query_string = '&'.join(query_params) if query_params else ""
     
     for event_match in matching_events:
         summary = event_match.get('summary', 'Untitled Event')
@@ -331,53 +349,30 @@ def _show_update_selection(matching_events: list, update_details: dict, sentence
             except Exception:
                 start_formatted = start
         
+        # Build URL with query parameters
+        event_id = event_match.get('id', '')
+        event_url = f"/update_event/{event_id}"
+        if query_string:
+            event_url = f"{event_url}?{query_string}"
+        
         formatted_events.append({
-            'id': event_match.get('id'),
+            'id': event_id,
+            'url': event_url,
             'summary': summary,
             'start': start_formatted,
         })
     
-    session['update_sentence'] = sentence
-    session['update_details'] = update_details
-    session['extraction_done'] = True
+    return render_template('update_select_standalone.html', 
+        events=formatted_events, 
+        original_sentence=sentence)
     
-    # Check if user specified a new date/time
-    date_mentioned = update_details.get('date_changed', False)
-    time_mentioned = update_details.get('time_changed', False)
-    user_specified_date = date_mentioned or time_mentioned
-    
-    # Store resolved time if available
-    resolved_time = session.get('resolved_time', {})
-    session['update_event_data'] = {
-        'summary': update_details.get('meeting_identifier', ''),
-        'attendees': update_details.get('attendees', []),
-    }
-    session['update_new_start'] = resolved_time.get('start')
-    session['update_new_end'] = resolved_time.get('end')
-    session['original_dates'] = []
-    
-    # CRITICAL: Set user_specified_date flag when user provides new date/time
-    # This prevents using original date instead of user-specified date
-    if user_specified_date:
-        session['user_specified_date'] = True
-        
-        # Store the extracted date for use when user selects an event
-        extracted_date = update_details.get('new_date')
-        if extracted_date:
-            session['update_new_date'] = {
-                'year': extracted_date.year,
-                'month': extracted_date.month,
-                'day': extracted_date.day,
-            }
-    
-    return render_template('update_select.html', 
+    return render_template('update_select_standalone.html', 
         events=formatted_events, 
         original_sentence=sentence)
 
 
 def _show_update_success(updated_event: dict):
-    """Display successful update and add to chat history."""
-    from modules.chat_logger import add_chat_message
+    """Display successful update."""
     from dateutil.parser import parse as date_parse
     
     event_summary = updated_event.get('summary', 'Untitled Meeting')
@@ -445,23 +440,15 @@ def _show_update_success(updated_event: dict):
     
     bot_response = "\n".join(bot_response_parts)
     
-    # Add to chat history
-    add_chat_message(
-        user_message="",
-        bot_response=bot_response,
-        message_type="success"
-    )
-    
     # Use the updated event summary as the title
     # Detect if meeting is offline based on location
     meeting_mode = 'offline' if event_location and 'meet.google.com' not in event_location and 'Online' not in event_location else 'online'
     
-    return render_template('meeting_details.html',
+    return render_template('meeting_details_standalone.html',
         title=event_summary,  # Show the updated event title
         icon="✅",
         message=f"Meeting '{event_summary}' has been updated successfully!",
         show_details=True,
-        event_json=updated_event,
         summary=event_summary,
         start=formatted_start,
         end=formatted_end,
@@ -472,5 +459,5 @@ def _show_update_success(updated_event: dict):
         hangout_link=hangout_link,
         html_link=html_link,
         meeting_mode=meeting_mode,
-        message_type="success",
+        message_type="bot",
         action="update")

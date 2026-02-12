@@ -16,6 +16,8 @@ from modules.date_utils import extract_date, is_date_ambiguous, format_past_date
 from modules.time_utils import extract_time
 from modules.action_utils import extract_action_intent
 from modules.link_utils import extract_meeting_link
+from modules.recurrence import extract_recurrence
+
 
 
 def extract_meeting_details(
@@ -101,6 +103,9 @@ def extract_meeting_details(
     if start_dt:
         end_dt = start_dt + timedelta(minutes=duration_min)
     
+    recurrence_rule = extract_recurrence(sentence)
+
+    
     # Build result
     result = {
         "action": "create",
@@ -119,7 +124,7 @@ def extract_meeting_details(
         "meeting_title": title,
         "constraints": [],
         "time_window": None,
-        "recurrence": [],
+        "recurrence": recurrence_rule,
         "start": start_dt,
         "end": end_dt,
         "description": description,

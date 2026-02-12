@@ -21,6 +21,7 @@ from flask import Flask
 
 from routes.auth import auth_bp
 from routes.meetings import meetings_bp
+from routes.chats import chats_bp
 from config import get_credentials_path
 
 
@@ -57,6 +58,7 @@ def inject_api_key():
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(meetings_bp, url_prefix='')
+app.register_blueprint(chats_bp, url_prefix='')
 
 
 # =============================================================================

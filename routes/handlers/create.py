@@ -9,83 +9,49 @@ from datetime import timedelta, timezone
 from services.calendar import load_email_book, create_calendar_event_with_attachment
 from modules.meeting_extractor import extract_meeting_details
 from ..utils import build_event_resource
-from .clarify import (
-    handle_time_clarification_wrapper,
-    handle_time_clarification, 
-    handle_meal_time_clarification,
-    handle_time_range_clarification
-)
-from modules.avoid_lunch_time_adjustment import detect_meal_time_avoidance
 
 
 def handle_create_meeting(sentence, service, drive_file_id=None, drive_file_name=None, drive_file_url=None):
-    """Handle meeting creation from natural language."""
+    """Handle meeting creation from natural language - without clarification steps."""
     email_book = load_email_book()
     details = extract_meeting_details(sentence, email_book)
     
     # Check for error in details
     if details.get('error'):
-        return render_template('message.html',
+        return render_template('message_standalone.html',
             title="Error",
             icon="❌",
             message=details['error'],
             message_type="error")
     
-    # Check if meal time clarification is needed
-    needs_meal_clarification, meals_to_avoid = detect_meal_time_avoidance(sentence)
-    if needs_meal_clarification:
-        return handle_meal_time_clarification(sentence, meals_to_avoid=meals_to_avoid, 
-                                               drive_file_id=drive_file_id, drive_file_name=drive_file_name, 
-                                               drive_file_url=drive_file_url)
+    # Auto-handle times - default to now + 30 minutes if not specified
+    from datetime import datetime
+    ist = timezone(timedelta(hours=5, minutes=30))
+    now = datetime.now(ist)
     
-    # Handle time ambiguity and defaulting
-    time_result = handle_time_clarification_wrapper(
-        sentence,
-        drive_file_id=drive_file_id,
-        drive_file_name=drive_file_name,
-        drive_file_url=drive_file_url
-    )
-    
-    # If time_result is a rendered template (clarification needed), return it directly
-    if hasattr(time_result, 'template_name') or '<html>' in str(time_result):
-        return time_result
-    
-    # Use resolved times if available
-    if time_result["start_time"] and time_result["end_time"]:
-        from datetime import timezone as tz
-        start_dt = time_result["start_time"]
-        end_dt = time_result["end_time"]
-        
-        # If duration is explicitly mentioned, recalculate end time
-        # Otherwise use the end time from clarify.py (for time ranges)
-        if details.get('duration_min', 30) != 30 or 'hour' in sentence.lower() or 'minute' in sentence.lower():
-            duration_min = details.get('duration_min', 30)
-            end_dt = start_dt + timedelta(minutes=duration_min)
-        
-        # Make datetime timezone-aware if not already
-        if start_dt.tzinfo is None:
-            start_dt = start_dt.replace(tzinfo=tz.utc)
-        if end_dt.tzinfo is None:
-            end_dt = end_dt.replace(tzinfo=tz.utc)
-        
-        # Update details with resolved times
+    if details.get('start') is None:
+        # Default to now + 30 minutes
+        start_dt = now + timedelta(minutes=30)
+        end_dt = start_dt + timedelta(minutes=details.get('duration_min', 30))
         details['start'] = start_dt
         details['end'] = end_dt
+    elif details.get('end') is None:
+        # Calculate end time based on duration
+        start_dt = details['start']
+        end_dt = start_dt + timedelta(minutes=details.get('duration_min', 30))
+        details['end'] = end_dt
     
-    # Validate start and end times
-    if details.get('start') is None or details.get('end') is None:
-        return render_template('message.html',
-            title="Error",
-            icon="❌",
-            message="Could not determine meeting time",
-            message_type="error")
+    # Make datetimes timezone-aware
+    if details['start'].tzinfo is None:
+        details['start'] = details['start'].replace(tzinfo=ist)
+    if details['end'].tzinfo is None:
+        details['end'] = details['end'].replace(tzinfo=ist)
     
-    return _execute_create_meeting(details, service, drive_file_id=drive_file_id, drive_file_name=drive_file_name, drive_file_url=drive_file_url)
+    return _execute_create_meeting(details, sentence, service, drive_file_id=drive_file_id, drive_file_name=drive_file_name, drive_file_url=drive_file_url)
 
 
-def _execute_create_meeting(details, service, drive_file_id=None, drive_file_name=None, drive_file_url=None):
+def _execute_create_meeting(details, sentence, service, drive_file_id=None, drive_file_name=None, drive_file_url=None):
     """Execute the actual meeting creation."""
-    from modules.chat_logger import add_chat_message
     from dateutil.parser import parse as date_parse
     
     custom_meet_link = details.get('meet_link', '')
@@ -185,19 +151,11 @@ def _execute_create_meeting(details, service, drive_file_id=None, drive_file_nam
         
         bot_response = "\n".join(bot_response_parts)
         
-        # Add to chat history
-        add_chat_message(
-            user_message="",
-            bot_response=bot_response,
-            message_type="success"
-        )
-        
-        return render_template('meeting_details.html',
+        return render_template('meeting_details_standalone.html',
             title="Meeting Created",
             icon="✅",
-            message=f"Meeting '{event_summary}' has been created successfully!",
+            message=f"'{event_summary}' has been created successfully!",
             show_details=True,
-            event_json=created_event,
             summary=event_summary,
             start=formatted_start,
             end=formatted_end,
@@ -208,10 +166,11 @@ def _execute_create_meeting(details, service, drive_file_id=None, drive_file_nam
             hangout_link=hangout_link,
             html_link=html_link,
             meeting_mode=details.get('mode', 'online'),
-            message_type="success")
+            message_type="bot",
+            action="create")
         
     except Exception as e:
-        return render_template('message.html',
+        return render_template('message_standalone.html',
             title="Creation Failed",
             icon="❌",
             message=str(e),

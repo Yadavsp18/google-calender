@@ -1,0 +1,29 @@
+{
+  "exclusion_words": [
+    "sir",
+    "madem",
+    "ma'am",
+    "madam",
+    "hello",
+    "hi",
+    "hey",
+    "hii",
+    "hiii",
+    "good",
+    "morning",
+    "afternoon",
+    "evening",
+    "night",
+    "please",
+    "thanks",
+    "thank",
+    "you",
+    "the",
+    "a",
+    "an",
+    "with",
+    "meeting",
+    "call",
+    "conference"
+  ]
+}

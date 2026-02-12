@@ -1,0 +1,41 @@
+<!-- Standalone date clarification for chat - no base.html -->
+<div class="message user">
+    <div class="message-bubble user-bubble">{{ original_sentence }}</div>
+</div>
+
+<div class="message bot warning">
+    {% if icon %}
+    <span class="message-icon">{{ icon }}</span>
+    {% endif %}
+    <div class="message-bubble">
+        <h3>{{ title }}</h3>
+        <p>{{ error_message }}</p>
+        <p>Today is: <strong>{{ today }}</strong></p>
+        
+        <div class="examples-section">
+            <h4>Try again with a valid date:</h4>
+            <ul>
+                <li><code>tomorrow</code></li>
+                <li><code>next week</code></li>
+                <li><code>next Monday</code></li>
+                <li><code>15th March 2026</code></li>
+            </ul>
+        </div>
+        
+        <div style="margin-top: 15px;">
+            <form action="/nlp_create" method="POST" style="display: flex; gap: 10px;">
+                <input type="text" name="sentence" placeholder="Enter a new date..." style="flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 8px;">
+                <button type="submit" class="quick-action-btn" style="background: #4285f4; color: white; border: none;">Send</button>
+                {% if drive_file_id %}
+                <input type="hidden" name="drive_file_id" value="{{ drive_file_id }}">
+                <input type="hidden" name="drive_file_name" value="{{ drive_file_name }}">
+                <input type="hidden" name="drive_file_url" value="{{ drive_file_url }}">
+                {% endif %}
+            </form>
+        </div>
+        
+        <div class="quick-actions">
+            <button class="quick-action-btn" onclick="window.location.href='/'">Start Over</button>
+        </div>
+    </div>
+</div>

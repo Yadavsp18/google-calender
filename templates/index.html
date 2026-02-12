@@ -15,9 +15,21 @@
 </script>
 {% endif %}
 
+{% if action_message %}
+{# Pass action message (cancelled/updated meeting) to JavaScript #}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const chatMessageData = document.getElementById('chatMessageData');
+        if (chatMessageData) {
+            chatMessageData.dataset.message = '{{ action_message | tojson }}';
+        }
+    });
+</script>
+{% endif %}
+
 {% if authenticated %}
-{# Server-side chat history is not needed anymore since we use localStorage #}
-{# The base.html JavaScript will load chats from localStorage #}
+{# Main chat interface - chat history loaded by JavaScript from localStorage #}
+<div id="mainPage" style="display: none;"></div>
 {% else %}
 <div class="message bot">
     <span class="message-icon">🔐</span>

@@ -41,24 +41,30 @@ CREATE_PATTERNS = [
     # Flexible patterns for "Schedule a team standup" style
     r'\b(schedule|book|arrange|organize|set\s+up|plan|setup)\s+.*(?:standup|session|meeting|call|appointment)\b',
     # Meeting with person patterns (implicit create) - ONLY if no reschedule or cancel keywords
-    r'(?!.*(?:move|shift|push|postpone|reschedule|bring\s+forward|drop|cancel|delete|remove|scrap|abort|void|nullify|update|change|modify|replace|switch|adjust|amend|edit|revise|alter))\b(meeting|call|chat|hangout)\s+with\b',
+    r'(?!.*(?:move|shift|push|postpone|reschedule|bring\s+forward|drop|cancel|delete|remove|scrap|abort|void|nullify|update|change|modify|replace|switch|adjust|amend|edit|revise|alter))(?:meeting|call|chat|hangout)\s+with\b',
+    # Also match "create a meeting with" pattern
+    r'\bcreate\s+(?:a\s+)?(?:meeting|event|call|appointment)\s+with\b',
+    r'\bschedule\s+(?:a\s+)?(?:meeting|event|call|appointment)\s+with\b',
+    r'\bhave\s+(?:a\s+)?(?:meeting|call|chat|hangout)\s+with\b',
+    r'\barrange\s+(?:a\s+)?(?:meeting|call)\s+with\b',
+    r'\bbook\s+(?:a\s+)?(?:meeting|call)\s+with\b',
 ]
 
 CANCEL_PATTERNS = [
     # Direct cancel patterns - simplified to match cancel words followed by meeting/event/appointment
-    r'cancel(?:ing)?\s+.*(?:meeting|event|appointment|it|this|that)',
-    r'delete\s+.*(?:meeting|event|appointment|it|this|that)',
-    r'remove\s+.*(?:meeting|event|appointment|it|this|that)',
-    r'drop\s+(?:meeting|it|this|that)',
-    r'drop\s+.*(?:meeting|event|appointment|it|this|that)',
-    r'scrap\s+.*(?:meeting|event|appointment|it|this|that)',
-    r'abort\s+.*(?:meeting|event|appointment|it|this|that)',
-    r'void\s+.*(?:meeting|event|appointment)',
-    r'nullify\s+.*(?:meeting|event|appointment)',
+    r'\bcancel(?:ing)?\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
+    r'\bdelete\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
+    r'\bremove\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
+    r'\bdrop\s+(?:meeting|it|this|that)',
+    r'\bdrop\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
+    r'\bscrap\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
+    r'\babort\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
+    r'\bvoid\s+.*(?:meeting|event|appointment)',
+    r'\bnullify\s+.*(?:meeting|event|appointment)',
     # Also match cancel words directly followed by any word (for "remove it", "drop this", etc.)
     r'\b(cancel|delete|remove|drop|scrap|abort|void|nullify)\s+(it|this|that|everything)',
     # Match standalone cancel keywords when followed by meeting-related words
-    r'\b(cancel|delete|remove|drop|scrap)\b.*(?:meeting|event|appointment|call|sync)',
+    r'\b(cancel|delete|remove|drop|scrap)\b.*(?:meeting|event|appointment|call|sync|message|chat)',
 ]
 
 UPDATE_PATTERNS = [
@@ -112,27 +118,43 @@ def detect_action(sentence: str) -> Tuple[bool, bool, bool, bool]:
     caller_name = caller.name if caller else 'unknown'
     
     # Debug print
-    print(f"\nDEBUG detect_action (called from: {caller_name}): '{sentence}'")
+    print(f"\n=== DEBUG detect_action ===")
+    print(f"Sentence: '{sentence}'")
+    print(f"Called from: {caller_name}")
     
-    # Check cancel/update/reschedule first (these take priority over create)
-    is_cancel = any(re.search(p, sentence, re.IGNORECASE) for p in CANCEL_PATTERNS)
-    print(f"DEBUG: is_cancel={is_cancel}")
-    if is_cancel:
-        for p in CANCEL_PATTERNS:
-            match = re.search(p, sentence, re.IGNORECASE)
-            if match:
-                print(f"DEBUG: Matched cancel pattern: '{p}' -> '{match.group(0)}'")
+    # Check cancel first
+    print("\n--- Checking CANCEL_PATTERNS ---")
+    is_cancel = False
+    for p in CANCEL_PATTERNS:
+        match = re.search(p, sentence, re.IGNORECASE)
+        if match:
+            is_cancel = True
+            print(f"MATCHED: '{p}' -> '{match.group(0)}'")
+    print(f"is_cancel = {is_cancel}")
     
+    # Check update
+    print("\n--- Checking UPDATE_PATTERNS ---")
     is_update = any(re.search(p, sentence, re.IGNORECASE) for p in UPDATE_PATTERNS)
-    is_reschedule = any(re.search(p, sentence, re.IGNORECASE) for p in RESCHEDULE_PATTERNS)
+    print(f"is_update = {is_update}")
     
-    # Only check create patterns if no cancel/update/reschedule detected
-    # This ensures "drop a meeting with john" is recognized as cancel, not create
+    # Check reschedule
+    print("\n--- Checking RESCHEDULE_PATTERNS ---")
+    is_reschedule = any(re.search(p, sentence, re.IGNORECASE) for p in RESCHEDULE_PATTERNS)
+    print(f"is_reschedule = {is_reschedule}")
+    
+    # Check create (only if no cancel/update/reschedule)
+    print("\n--- Checking CREATE_PATTERNS ---")
     is_create = False
     if not (is_cancel or is_update or is_reschedule):
-        is_create = any(re.search(p, sentence, re.IGNORECASE) for p in CREATE_PATTERNS)
+        for p in CREATE_PATTERNS:
+            match = re.search(p, sentence, re.IGNORECASE)
+            if match:
+                is_create = True
+                print(f"MATCHED: '{p}' -> '{match.group(0)}'")
+    print(f"is_create = {is_create}")
     
-    print(f"DEBUG: Final - is_create={is_create}, is_cancel={is_cancel}, is_update={is_update}, is_reschedule={is_reschedule}")
+    print(f"\n=== FINAL RESULT ===")
+    print(f"is_create={is_create}, is_cancel={is_cancel}, is_update={is_update}, is_reschedule={is_reschedule}")
     
     return is_create, is_cancel, is_update, is_reschedule
 
@@ -169,13 +191,13 @@ def extract_action_intent(sentence: str) -> Dict[str, str]:
     
     # Define cancel patterns (only if no reschedule keywords)
     cancel_patterns = [
-        r'cancel(?:ing)?\s+.*(?:meeting|event|appointment|it|this|that)',
-        r'delete\s+.*(?:meeting|event|appointment|it|this|that)',
-        r'remove\s+.*(?:meeting|event|appointment|it|this|that)',
+        r'cancel(?:ing)?\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
+        r'delete\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
+        r'remove\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
         r'drop\s+(?:meeting|it|this|that)',
-        r'drop\s+.*(?:meeting|event|appointment|it|this|that)',
-        r'scrap\s+.*(?:meeting|event|appointment|it|this|that)',
-        r'abort\s+.*(?:meeting|event|appointment|it|this|that)',
+        r'drop\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
+        r'scrap\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
+        r'abort\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
         r'void\s+.*(?:meeting|event|appointment)',
         r'nullify\s+.*(?:meeting|event|appointment)',
         r'\b(cancel|delete|remove|drop|scrap|abort|void|nullify)\s+(it|this|that|everything)',
@@ -231,7 +253,10 @@ def extract_action_intent(sentence: str) -> Dict[str, str]:
     # Check for explicit create patterns
     create_patterns = [
         r'\b(create|make|book|schedule|arrange|organize|set\s+up|fix|block|have|host)\s+(?:a\s+)?(?:meeting|event|call|appointment)\b',
-        r'\b(meeting|call|chat|hangout)\s+with\b(?!.*(?:move|shift|push|postpone|reschedule|change|update|replace|drop|cancel|delete|remove|scrap))',
+        r'(?!.*(?:move|shift|push|postpone|reschedule|change|update|replace|drop|cancel|delete|remove|scrap))(?:meeting|call|chat|hangout)\s+with\b',
+        r'\bcreate\s+(?:a\s+)?(?:meeting|event|call|appointment)\s+with\b',
+        r'\bschedule\s+(?:a\s+)?(?:meeting|event|call|appointment)\s+with\b',
+        r'\bhave\s+(?:a\s+)?(?:meeting|call|chat|hangout)\s+with\b',
     ]
     
     for pattern in create_patterns:
