@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Excel to JSON Converter - Google Calendar Meeting Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .excel-converter-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 80vh;
+            padding: 20px;
+        }
+        
+        .excel-converter-container {
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .excel-converter-box {
+            background: #fff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .excel-converter-box h2 {
+            margin: 0 0 20px 0;
+            color: #333;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .file-input-wrapper {
+            margin: 20px 0;
+        }
+        
+        .file-input-wrapper input[type="file"] {
+            display: none;
+        }
+        
+        .file-input-label {
+            display: inline-block;
+            padding: 30px 20px;
+            background: #f5f5f5;
+            border: 2px dashed #ccc;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        
+        .file-input-label:hover {
+            background: #e8f4fc;
+            border-color: #4285f4;
+        }
+        
+        .file-input-label.selected {
+            background: #e8f4fc;
+            border-color: #4285f4;
+        }
+        
+        .selected-filename {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .convert-btn, .download-btn {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .convert-btn {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .convert-btn:hover {
+            background: #45a049;
+        }
+        
+        .convert-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .download-btn {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .download-btn:hover {
+            background: #0b7dda;
+        }
+        
+        .download-btn.hidden {
+            display: none !important;
+        }
+        
+        .status-message {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .status-message.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #a5d6a7;
+        }
+        
+        .status-message.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+        }
+        
+        .status-message.info {
+            background: #e3f2fd;
+            color: #1565c0;
+            border: 1px solid #90caf9;
+        }
+        
+        .file-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #666;
+        }
+        
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 20px;
+            color: #666;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        
+        .back-link:hover {
+            color: #4285f4;
+        }
+    </style>
+</head>
+<body>
+    <div class="excel-converter-wrapper">
+        <div class="excel-converter-container">
+            <a href="/" class="back-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                Back to Chat
+            </a>
+            
+            <div class="excel-converter-box">
+                <h2>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                    Excel to JSON Converter
+                </h2>
+                
+                <div class="file-input-wrapper">
+                    <input type="file" id="excelFileInput" accept=".xlsx,.xls" onchange="handleFileSelect(this)">
+                    <label for="excelFileInput" class="file-input-label" id="fileInputLabel">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p style="margin: 10px 0 5px 0; color: #666;">Click to select Excel file</p>
+                        <p style="margin: 0; font-size: 0.8rem; color: #999;">Supports .xlsx and .xls</p>
+                    </label>
+                    <p class="selected-filename" id="selectedFilename"></p>
+                </div>
+                
+                <div class="button-group">
+                    <button type="button" class="convert-btn" id="convertBtn" onclick="convertToJson()" disabled>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="16 16 12 12 8 16"></polyline>
+                            <line x1="12" y1="12" x2="12" y2="21"></line>
+                            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
+                        </svg>
+                        Convert
+                    </button>
+                    <button type="button" class="download-btn hidden" id="downloadBtn" onclick="downloadJson()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Download JSON
+                    </button>
+                </div>
+                
+                <div class="status-message" id="statusMessage" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let jsonFileName = "";
+        
+        function handleFileSelect(input) {
+            const label = document.getElementById('fileInputLabel');
+            const filenameDisplay = document.getElementById('selectedFilename');
+            const convertBtn = document.getElementById('convertBtn');
+            
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const fileName = file.name;
+                const fileSize = (file.size / 1024).toFixed(2);
+                const fileExt = fileName.split('.').pop().toLowerCase();
+                
+                if (fileExt === 'xlsx' || fileExt === 'xls') {
+                    label.classList.add('selected');
+                    label.innerHTML = `
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #4CAF50;">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                        </svg>
+                        <p style="margin: 10px 0 5px 0; color: #4CAF50; font-weight: 500;">${fileName}</p>
+                        <p style="margin: 0; font-size: 0.8rem; color: #666;">File size: ${fileSize} KB</p>
+                    `;
+                    convertBtn.disabled = false;
+                    hideStatus();
+                } else {
+                    showStatus('Please select a valid Excel file (.xlsx or .xls)', 'error');
+                    input.value = '';
+                    convertBtn.disabled = true;
+                }
+            } else {
+                label.classList.remove('selected');
+                label.innerHTML = `
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <p style="margin: 10px 0 5px 0; color: #666;">Click to select Excel file</p>
+                    <p style="margin: 0; font-size: 0.8rem; color: #999;">Supports .xlsx and .xls</p>
+                `;
+                filenameDisplay.textContent = '';
+                convertBtn.disabled = true;
+            }
+        }
+        
+        function convertToJson() {
+            const fileInput = document.getElementById('excelFileInput');
+            const convertBtn = document.getElementById('convertBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            
+            if (!fileInput.files[0]) {
+                showStatus('Please select a file first', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            convertBtn.disabled = true;
+            convertBtn.innerHTML = `
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin">
+                    <line x1="12" y1="2" x2="12" y2="6"></line>
+                    <line x1="12" y1="18" x2="12" y2="22"></line>
+                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                    <line x1="2" y1="12" x2="6" y2="12"></line>
+                    <line x1="18" y1="12" x2="22" y2="12"></line>
+                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                    <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                </svg>
+                Converting...
+            `;
+            
+            showStatus('Converting your Excel file to JSON...', 'info');
+            
+            fetch('/convert', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    jsonFileName = data.json_file;
+                    downloadBtn.classList.remove('hidden');
+                    convertBtn.innerHTML = `
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        Converted!
+                    `;
+                    convertBtn.style.background = '#4CAF50';
+                    showStatus('Conversion successful! Click "Download JSON" to save the file.', 'success');
+                } else {
+                    convertBtn.disabled = false;
+                    convertBtn.innerHTML = `
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="16 16 12 12 8 16"></polyline>
+                            <line x1="12" y1="12" x2="12" y2="21"></line>
+                            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
+                        </svg>
+                        Convert
+                    `;
+                    showStatus('Conversion failed: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                convertBtn.disabled = false;
+                convertBtn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="16 16 12 12 8 16"></polyline>
+                        <line x1="12" y1="12" x2="12" y2="21"></line>
+                        <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
+                    </svg>
+                    Convert
+                `;
+                showStatus('Error: ' + error.message, 'error');
+            });
+        }
+        
+        function downloadJson() {
+            if (jsonFileName) {
+                window.location.href = '/download/' + jsonFileName;
+            }
+        }
+        
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = 'status-message ' + type;
+            statusEl.style.display = 'block';
+        }
+        
+        function hideStatus() {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.style.display = 'none';
+        }
+    </script>
+
+    <style>
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</body>
+</html>

@@ -17,7 +17,8 @@ For NLP processing, see:
 - modules/meeting_extractor.py - Meeting extraction
 """
 
-from flask import Flask
+from flask import Flask, request, jsonify, render_template, send_file
+import os
 
 from routes.auth import auth_bp
 from routes.meetings import meetings_bp
@@ -59,6 +60,60 @@ def inject_api_key():
 app.register_blueprint(auth_bp)
 app.register_blueprint(meetings_bp, url_prefix='')
 app.register_blueprint(chats_bp, url_prefix='')
+
+# =============================================================================
+# Excel Conversion Routes
+# =============================================================================
+
+from modules.excel_converter import convert_excel_to_json
+
+ALLOWED_EXTENSIONS = {"xls", "xlsx"}
+UPLOAD_FOLDER = "uploads"
+JSON_FOLDER = "json_files"
+
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["JSON_FOLDER"] = JSON_FOLDER
+
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route("/convert", methods=["POST"])
+def convert():
+    try:
+        if "file" not in request.files:
+            return jsonify({"status": "error", "message": "No file uploaded"}), 400
+
+        file = request.files["file"]
+
+        if file.filename == "":
+            return jsonify({"status": "error", "message": "No selected file"}), 400
+
+        if not allowed_file(file.filename):
+            return jsonify({"status": "error", "message": "Invalid file type. Only .xls and .xlsx are allowed."}), 400
+
+        json_file = convert_excel_to_json(file)
+
+        return jsonify({"status": "success", "json_file": json_file}), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/download/<filename>")
+def download_file(filename):
+    return send_file(
+        os.path.join(app.config["JSON_FOLDER"], filename),
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@app.route("/excel-converter")
+def excel_converter():
+    """Render the Excel to JSON converter page."""
+    return render_template("excel_converter.html")
 
 
 # =============================================================================
