@@ -224,24 +224,29 @@ def nlp_create():
     
     # Count words
     word_count = len(sentence.split())
-
     print(f"DEBUG: Word count = {word_count}")
-
-    # If sentence too short, ask for more details
-    if word_count <= 6:
-        return render_template('message_standalone.html',
-            title="More Details Required",
-            icon="📝",
-            message="Please provide detailed information about the event (date, time, attendees, etc.).",
-            message_type="warning")
-
-    
     
     if not sentence:
         return render_template('message_standalone.html',
             title="Missing Input",
             icon="⚠️",
             message="Please describe the meeting.",
+            message_type="warning")
+    
+    # Check for cancel/update/reschedule keywords FIRST - these should not be blocked by word count
+    sentence_lower = sentence.lower()
+    cancel_keywords = ['cancel', 'cancelled', 'cancelling', 'delete', 'deleted', 'remove', 'removed', 'drop', 'scrap', 'abort']
+    update_keywords = ['update', 'updated', 'change', 'changed', 'modify', 'modified', 'edit', 'amend']
+    reschedule_keywords = ['reschedule', 'rescheduled', 'postpone', 'postponed', 'move', 'moved', 'shift', 'pushed']
+    
+    has_action_keyword = any(kw in sentence_lower for kw in cancel_keywords + update_keywords + reschedule_keywords)
+    
+    # If sentence too short AND no action keyword, ask for more details
+    if word_count <= 6 and not has_action_keyword:
+        return render_template('message_standalone.html',
+            title="More Details Required",
+            icon="📝",
+            message="Please provide detailed information about the event (date, time, attendees, etc.).",
             message_type="warning")
     
     # Check for file upload
@@ -415,6 +420,131 @@ def delete_event(event_id):
             'message': result.get('error', 'Unknown error'),
             'redirect': '/'
         })
+
+
+@meetings_bp.route('/api/event/<event_id>', methods=['GET'])
+def api_get_event(event_id):
+    """Get event details by ID - returns JSON."""
+    from dateutil.parser import parse as date_parse
+    
+    if not is_authenticated():
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    service = get_calendar_service()
+    if not service:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        event = service.events().get(calendarId='primary', eventId=event_id).execute()
+        
+        # Extract and format event details
+        event_start = event.get('start', {}).get('dateTime', event.get('start', {}).get('date', ''))
+        event_end = event.get('end', {}).get('dateTime', event.get('end', {}).get('date', ''))
+        
+        formatted_start = ''
+        if event_start:
+            try:
+                start_dt = date_parse(event_start)
+                formatted_start = start_dt.strftime("%A, %B %d, %Y at %I:%M %p")
+            except Exception:
+                formatted_start = event_start
+        
+        formatted_end = ''
+        if event_end:
+            try:
+                end_dt = date_parse(event_end)
+                formatted_end = end_dt.strftime("%I:%M %p")
+            except Exception:
+                formatted_end = event_end
+        
+        attendees_list = [a.get('email', '') for a in event.get('attendees', []) if a.get('email')]
+        
+        return jsonify({
+            'id': event.get('id'),
+            'summary': event.get('summary', ''),
+            'description': event.get('description', ''),
+            'location': event.get('location', ''),
+            'attendees': ', '.join(attendees_list) if attendees_list else '',
+            'start_raw': event_start,
+            'end_raw': event_end,
+            'start_formatted': formatted_start,
+            'end_formatted': formatted_end,
+            'hangout_link': event.get('hangoutLink', ''),
+            'html_link': event.get('htmlLink', '')
+        })
+    except Exception as e:
+        print(f"Error getting event: {e}")
+        return jsonify({'error': str(e)}), 404
+
+
+@meetings_bp.route('/api/event/<event_id>', methods=['POST'])
+def api_update_event(event_id):
+    """Update an event - receives JSON data."""
+    from datetime import datetime, timezone, timedelta
+    from dateutil.parser import parse as date_parse
+    import json
+    
+    if not is_authenticated():
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    service = get_calendar_service()
+    if not service:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    # Get the request data
+    data = request.get_json() or {}
+    new_summary = data.get('summary', '')
+    new_description = data.get('description', '')
+    new_location = data.get('location', '')
+    new_date = data.get('date', '')  # Format: YYYY-MM-DD
+    new_time = data.get('time', '')  # Format: HH:MM
+    
+    # Get original event
+    try:
+        original_event = service.events().get(calendarId='primary', eventId=event_id).execute()
+    except Exception as e:
+        return jsonify({'error': f'Event not found: {str(e)}'}), 404
+    
+    # Build update payload
+    update_payload = original_event.copy()
+    
+    if new_summary:
+        update_payload['summary'] = new_summary
+    if new_description:
+        update_payload['description'] = new_description
+    if new_location:
+        update_payload['location'] = new_location
+    
+    # Handle date/time changes
+    if new_date and new_time:
+        try:
+            from datetime import datetime
+            # Parse the new date and time
+            new_start = datetime.strptime(f"{new_date} {new_time}", "%Y-%m-%d %H:%M")
+            new_start = new_start.replace(tzinfo=timezone.utc)
+            new_end = new_start + timedelta(minutes=30)
+            
+            update_payload['start'] = {'dateTime': new_start.isoformat()}
+            update_payload['end'] = {'dateTime': new_end.isoformat()}
+        except Exception as e:
+            print(f"Error parsing date/time: {e}")
+    
+    # Perform update
+    from services.calendar import update_calendar_event
+    result = update_calendar_event(event_id, update_payload)
+    
+    if result['success']:
+        updated_event = result.get('event', {})
+        return jsonify({
+            'success': True,
+            'message': f"Meeting '{update_payload.get('summary', 'Meeting')}' has been updated successfully!",
+            'event': updated_event
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'message': result.get('error', 'Unknown error')
+        }), 500
 
 
 @meetings_bp.route('/update_event/<event_id>', methods=['GET', 'POST'])

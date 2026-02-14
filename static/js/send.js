@@ -130,6 +130,9 @@ async function sendMessage() {
     const text = chatInput.value.trim();
     if (!text && !window.pendingFile) return;
     
+    // Mark that we have messages to send
+    hasUnsavedMessages = true;
+    
     let messageText = text;
     let fileAttachment = '';
     if (window.pendingFile) {
@@ -154,14 +157,9 @@ async function sendMessage() {
     
     addTypingIndicator();
     
-    const lowerText = text.toLowerCase();
-    const actionKeywords = ['create', 'schedule', 'meeting', 'book', 'add', 'cancel', 'delete', 'drop', 'remove', 'abort', 'scrap', 'void', 'nullify', 'update', 'change', 'modify', 'edit', 'replace', 'switch', 'adjust', 'amend', 'alter', 'move', 'postpone', 'push', 'reschedule', 'shift', 'bring', 'fix', 'show', 'list', 'get', 'events'];
-    const isNlpRoute = actionKeywords.some(keyword => lowerText.startsWith(keyword));
-    
-    if (isNlpRoute) {
-        try {
-            const formData = new FormData();
-            formData.append('sentence', text);
+    try {
+        const formData = new FormData();
+        formData.append('sentence', text);
             
             if (window.pendingFile && window.pendingFile.type === 'drive-link' && window.pendingFile.fileId) {
                 try {
@@ -239,44 +237,20 @@ async function sendMessage() {
             }
             
             window.pendingFile = null;
+            
+            // Reset unsaved messages flag since message was saved
+            hasUnsavedMessages = false;
+            
             return;
 
         } catch (error) {
             removeTypingIndicator();
             addMessage('Error sending message: ' + error.message, false, '❌', 'error');
             sendBtn.disabled = false;
+            
+            // Reset unsaved messages flag even on error
+            hasUnsavedMessages = false;
         }
-    } else {
-        // Handle general chat messages (non-NLP route)
-        const lowerText = text.toLowerCase();
-        
-        if (lowerText.includes('help') || lowerText.includes('what can you do')) {
-            removeTypingIndicator();
-            const helpMsg = '👋 I can help you manage your Google Calendar! Here are some examples:';
-            const examples = [
-                "Create a meeting with John tomorrow at 3pm",
-                "Show my events for next week",
-                "Cancel my 2pm meeting",
-                "Reschedule Friday's meeting to 4pm"
-            ];
-            addMessage(helpMsg, false, '👋');
-            addExamples(examples);
-            addQuickActions(['Create Meeting', 'View Events', 'List Events']);
-            addToChatHistory(today, text, helpMsg + '\n' + examples.join('\n'), 'info', fileAttachment);
-            sendBtn.disabled = false;
-        } else if (lowerText.includes('events') || lowerText.includes('meetings') || lowerText.includes('schedule')) {
-            removeTypingIndicator();
-            addMessage('Here are some options to view your events:', false, '📅');
-            addQuickActions(['Show Events', 'List Events', 'View Calendar']);
-            addToChatHistory(today, text, 'View events requested', 'info', fileAttachment);
-            sendBtn.disabled = false;
-        } else {
-            removeTypingIndicator();
-            addMessage("I can help you create, update, or cancel meetings. Try saying 'Create a meeting' or 'Show my events'.", false, '💡');
-            addToChatHistory(today, text, 'General help provided', 'info', fileAttachment);
-            sendBtn.disabled = false;
-        }
-    }
 }
 
 // Export for use in other modules

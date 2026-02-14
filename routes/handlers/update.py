@@ -134,8 +134,14 @@ def handle_update_meeting(sentence: str, service):
     # Step 2: Detect partial reschedule
     update_details = detect_partial_reschedule(update_details, sentence)
     
-    # Step 3: Find matching events
-    matching_events = find_matching_events(service, sentence, email_book)
+    # Step 3: Find matching events (pass extracted_date to filter by date)
+    # Note: attendee_names is not passed because find_matching_events already extracts names from sentence
+    matching_events = find_matching_events(
+        service, 
+        sentence, 
+        email_book, 
+        extracted_date=update_details.get('new_date')
+    )
     
     if not matching_events:
         return render_template('message_standalone.html',
@@ -361,10 +367,6 @@ def _show_update_selection(matching_events: list, update_details: dict, sentence
             'summary': summary,
             'start': start_formatted,
         })
-    
-    return render_template('update_select_standalone.html', 
-        events=formatted_events, 
-        original_sentence=sentence)
     
     return render_template('update_select_standalone.html', 
         events=formatted_events, 

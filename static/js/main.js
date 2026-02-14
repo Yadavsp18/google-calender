@@ -13,6 +13,12 @@ console.log('Loading modules...');
 async function initializeChat() {
     console.log('Initializing chat...');
     
+    // Check if we're on the events page - don't initialize chat there
+    if (window.location.pathname === '/events') {
+        console.log('Events page detected, skipping chat initialization');
+        return;
+    }
+    
     // Check if we're on the auth page (auth page has authPage element)
     const isAuthPageResult = isAuthPage();
     console.log('Is auth page:', isAuthPageResult);
@@ -25,7 +31,35 @@ async function initializeChat() {
     
     console.log('Non-auth page, initializing chat features...');
     
-    // Check for chat message from session
+    // Check for chat message from sessionStorage first (for events page redirects)
+    const actionMessage = sessionStorage.getItem('last_action_message');
+    const cancelled = sessionStorage.getItem('cancelled');
+    
+    if (actionMessage || cancelled) {
+        // Clear from session storage
+        sessionStorage.removeItem('last_action_message');
+        sessionStorage.removeItem('cancelled');
+        
+        // Show message if exists
+        if (actionMessage) {
+            try {
+                const messageData = JSON.parse(actionMessage);
+                
+                // Always show as a message (either success or error)
+                if (messageData.type === 'success') {
+                    addMessage(messageData.message || 'Meeting processed successfully', false, messageData.icon || '✅', messageData.type);
+                } else if (messageData.type === 'error') {
+                    addMessage(messageData.message || 'An error occurred', false, messageData.icon || '❌', messageData.type);
+                } else {
+                    addMessage(messageData.message || 'Meeting processed', false, messageData.icon || 'ℹ️', messageData.type);
+                }
+            } catch (e) {
+                console.error('Error parsing action message:', e);
+            }
+        }
+    }
+    
+    // Check for chat message from session (Flask session)
     const chatMessageEl = document.getElementById('chatMessageData');
     if (chatMessageEl && chatMessageEl.dataset.message) {
         try {
@@ -117,6 +151,9 @@ function showWelcomeMessage() {
     // Clear chat messages
     chatMessages.innerHTML = '';
     
+    // Reset unsaved messages flag
+    hasUnsavedMessages = false;
+    
     // Add date label
     const dateLabel = document.createElement('div');
     dateLabel.className = 'current-date-label';
@@ -148,3 +185,4 @@ document.addEventListener('click', function(event) {
 });
 
 console.log('All modules loaded');
+

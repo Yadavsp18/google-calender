@@ -19,13 +19,80 @@ def load_email_book() -> List[Dict[str, str]]:
         return []
 
 
-def get_team_members(team_name: str, email_book: List[Dict[str, str]]) -> List[str]:
+def load_names_database() -> Dict:
+    """Load names database from config file."""
+    import json
+    import os
+    names_file = os.path.join(os.path.dirname(__file__), '..', 'config', 'names.json')
+    try:
+        with open(names_file, 'r') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"names": []}
+
+
+def load_teams() -> Dict[str, Dict]:
+    """Load teams from config file."""
+    import json
+    import os
+    teams_file = os.path.join(os.path.dirname(__file__), '..', 'config', 'teams.json')
+    try:
+        with open(teams_file, 'r') as f:
+            data = json.load(f)
+            return data.get('teams', {})
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def get_team_members(team_name: str, email_book: List[Dict[str, str]] = None) -> List[str]:
     """Get list of email addresses for a team."""
-    team_name_lower = team_name.lower()
-    for team in email_book:
-        if team.get('team', '').lower() == team_name_lower:
-            return team.get('members', [])
+    teams = load_teams()
+    team_name_lower = team_name.lower().strip()
+    
+    for team_key, team_data in teams.items():
+        team_name = team_data.get('team', team_key)
+        aliases = team_data.get('aliases', [])
+        
+        if (team_name_lower == team_name.lower() or 
+            team_name_lower in [a.lower() for a in aliases]):
+            return team_data.get('members', [])
+    
+    if email_book:
+        for team in email_book:
+            if team.get('team', '').lower() == team_name_lower:
+                return team.get('members', [])
+    
     return []
+
+
+def extract_team_names(sentence: str) -> List[str]:
+    """Extract team names from natural language sentence."""
+    teams = load_teams()
+    sentence_lower = sentence.lower()
+    found_teams = []
+    
+    team_patterns = [
+        r'\bwith\s+(.+?)\s+team\b',
+        r'\bwith\s+(.+?)\s+team\s+(?:members|colleagues|people)?\b',
+        r'\b(.+?)\s+team\b',
+    ]
+    
+    for pattern in team_patterns:
+        matches = re.findall(pattern, sentence_lower, re.IGNORECASE)
+        for match in matches:
+            team_name = match.strip()
+            for team_key, team_data in teams.items():
+                team_name_orig = team_data.get('team', team_key)
+                aliases = team_data.get('aliases', [])
+                all_names = [team_name_orig.lower()] + [a.lower() for a in aliases]
+                if team_name in all_names:
+                    if team_name_orig not in found_teams:
+                        found_teams.append(team_name_orig)
+                if team_name + ' team' in all_names or team_name in all_names:
+                    if team_name_orig not in found_teams:
+                        found_teams.append(team_name_orig)
+    
+    return found_teams
 
 
 def is_valid_email(email: str) -> bool:
@@ -47,7 +114,6 @@ def load_exclusion_words() -> set:
         return set()
 
 
-# Load exclusion words from config
 _exclusion_words_cache = None
 
 
@@ -55,7 +121,6 @@ def get_invalid_words() -> set:
     """Get the set of invalid words (from config + hardcoded)."""
     global _exclusion_words_cache
     if _exclusion_words_cache is None:
-        # Merge config exclusion words with hardcoded invalid words
         config_words = load_exclusion_words()
         hardcoded_words = {
             'me', 'myself', 'my', 'we', 'us', 'our', 'ours', 'you', 'your', 'yours',
@@ -65,14 +130,14 @@ def get_invalid_words() -> set:
             'meeting', 'call', 'chat', 'discussion', 'hangout',
             'everyone', 'all', 'team', 'group', 'anyone', 'anybody',
             'tomorrow', 'today', 'yesterday', 'morning', 'afternoon', 'evening',
-            'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
             'next', 'last', 'previous', 'current',
             'email', 'text', 'message',
             'finance', 'legal', 'engineering', 'sales', 'marketing', 'hr', 'human resources',
             'support', 'operations',
             'ceo', 'cto', 'cfo', 'coo', 'vp', 'director', 'manager', 'lead',
-            # Honorifics
             'sir', "ma'am", 'maam', 'madam', 'dr', 'prof', 'mr', 'mrs', 'miss',
+            'with', 'at', 'on', 'for', 'to', 'about', 'create', 'schedule',
+            '5pm', '5am', '10am', '10pm', '12pm', '12am', 'pm', 'am', 'noon', 'midnight',
         }
         _exclusion_words_cache = config_words.union(hardcoded_words)
     return _exclusion_words_cache
@@ -81,42 +146,19 @@ def get_invalid_words() -> set:
 def is_valid_name(name: str) -> bool:
     """Check if a name is valid (not a common false positive)."""
     invalid_words = get_invalid_words()
-    
     name_lower = name.lower().strip()
     if name_lower in invalid_words:
         return False
     return True
 
 
-def clean_name(name: str) -> str:
-    """Remove honorifics and clean up a name using exclusion words from config."""
-    exclusion_words = get_invalid_words()
-    name_clean = name.strip()
-    name_lower = name_clean.lower()
-    
-    # Remove exclusion words from the beginning of the name
-    for word in exclusion_words:
-        if name_lower.startswith(word):
-            parts = name_clean.split()
-            if parts[0].lower() == word:
-                name_clean = ' '.join(parts[1:])
-                name_lower = name_clean.lower()
-                break
-    
-    # Remove exclusion words from the end of the name
-    for word in exclusion_words:
-        if name_lower.endswith(word):
-            parts = name_clean.split()
-            if parts[-1].lower() == word:
-                name_clean = ' '.join(parts[:-1])
-                break
-    
-    return name_clean.strip()
-
-
 def extract_attendee_names(sentence: str) -> List[str]:
     """
     Extract attendee names from natural language sentence.
+    
+    Simple approach:
+    1. Split the sentence into words
+    2. Match each word against the names.json email book
     
     Args:
         sentence: The natural language sentence to parse
@@ -126,59 +168,42 @@ def extract_attendee_names(sentence: str) -> List[str]:
     """
     person_names = []
     
-    # Pattern for "with X" where X is one or more names
-    # Note: We need to handle "John + finance + legal" where + separates attendees
-    # and "tomorrow" is a time word, not part of the name
+    # Load the names database
+    names_db = load_names_database()
+    names_list = names_db.get('names', [])
     
-    # First, try to find "with X" pattern
-    with_match = re.search(
-        r'\bwith\s+(.+?)(?:\s+(?:about|for|at|on|today|next|this|week|evening|morning|afternoon|night|monday|tuesday|wednesday|thursday|friday|saturday|sunday|after|in|by|to|for|re)|$)',
-        sentence,
-        re.IGNORECASE
-    )
+    # Create a set of all valid names (case-insensitive)
+    valid_names = {}
+    for name_entry in names_list:
+        display_name = name_entry.get('display_name', '')
+        first_name = name_entry.get('first_name', '')
+        email = name_entry.get('email', '')
+        if display_name:
+            valid_names[display_name.lower()] = {'name': display_name, 'email': email}
+        if first_name and first_name != display_name:
+            valid_names[first_name.lower()] = {'name': first_name, 'email': email}
     
-    if with_match:
-        attendee_str = with_match.group(1).strip()
-        
-        # Handle different name formats
-        # Handle "+" as separator (with or without spaces)
-        if '+' in attendee_str:
-            # Split by + and clean up each part
-            parts = re.split(r'\s*\+\s*', attendee_str)
-            for part in parts:
-                part = part.strip()
-                # Remove any trailing time/date words and description markers
-                part = re.sub(r'\s+(?:tomorrow|today|next|am|pm|at|on|re)\s*$', '', part, flags=re.IGNORECASE)
-                part = re.sub(r'\s+\d{1,2}(?:am|pm)?\s*$', '', part, flags=re.IGNORECASE)  # Remove time like "6pm"
-                part = clean_name(part)  # Remove honorifics
-                if part and len(part) > 1 and is_valid_name(part):
-                    person_names.append(part.title())
-        elif re.search(r'\s+and\s+|\s+&\s+', attendee_str, re.IGNORECASE):
-            names = re.split(r'\s+(?:and|&)\s+', attendee_str, flags=re.IGNORECASE)
-            for name in names:
-                name = name.strip()
-                if ',' in name:
-                    parts = re.split(r'\s*,\s*', name)
-                    for part in parts:
-                        part = part.strip()
-                        part = clean_name(part)  # Remove honorifics
-                        if part and len(part) > 1 and is_valid_name(part):
-                            person_names.append(part.title())
-                else:
-                    name = clean_name(name)  # Remove honorifics
-                    if name and len(name) > 1 and is_valid_name(name):
-                        person_names.append(name.title())
-        elif ',' in attendee_str:
-            parts = re.split(r'\s*,\s*', attendee_str)
-            for part in parts:
-                part = part.strip()
-                part = clean_name(part)  # Remove honorifics
-                if part and len(part) > 1 and is_valid_name(part):
-                    person_names.append(part.title())
-        else:
-            attendee_str = clean_name(attendee_str)  # Remove honorifics
-            if attendee_str and len(attendee_str) > 1 and is_valid_name(attendee_str):
-                person_names.append(attendee_str.title())
+    # Also load from email.json
+    email_book = load_email_book()
+    for entry in email_book:
+        name = entry.get('name', '')
+        email = entry.get('email', '')
+        if name:
+            name_lower = name.lower()
+            if name_lower not in valid_names:
+                valid_names[name_lower] = {'name': name, 'email': email}
+    
+    # Split sentence into words and check each word against valid names
+    words = re.findall(r'\b\w+\b', sentence)
+    
+    # Check each word in the sentence against valid names
+    for word in words:
+        word_lower = word.lower()
+        if word_lower in valid_names:
+            name_info = valid_names[word_lower]
+            # Avoid duplicates
+            if name_info['name'] not in person_names:
+                person_names.append(name_info['name'])
     
     # Filter out common non-name words
     person_names = [name for name in person_names if name.lower() not in ['me', 'and', 'or', 'everyone', 'all']]
@@ -188,19 +213,24 @@ def extract_attendee_names(sentence: str) -> List[str]:
 
 
 def extract_attendee_emails(sentence: str) -> List[str]:
-    """
-    Extract email addresses directly mentioned in the sentence.
-    
-    Args:
-        sentence: The natural language sentence to parse
-        
-    Returns:
-        List of email addresses found in the sentence
-    """
-    # Pattern to match email addresses in text
+    """Extract email addresses directly mentioned in the sentence."""
     email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
     emails = re.findall(email_pattern, sentence)
     return emails
+
+
+def extract_team_attendees(sentence: str) -> List[Dict[str, str]]:
+    """Extract team attendees from sentence and return as attendee dicts."""
+    team_names = extract_team_names(sentence)
+    attendees = []
+    
+    for team_name in team_names:
+        members = get_team_members(team_name)
+        for member_email in members:
+            if {"email": member_email} not in attendees:
+                attendees.append({"email": member_email})
+    
+    return attendees
 
 
 def extract_attendees(sentence: str, email_book: List[Dict[str, str]] = None) -> List[Dict[str, str]]:
@@ -222,6 +252,9 @@ def extract_attendees(sentence: str, email_book: List[Dict[str, str]] = None) ->
     
     # Then, extract attendee names for lookup
     person_names = extract_attendee_names(sentence)
+    
+    # Also extract team attendees explicitly
+    team_attendees = extract_team_attendees(sentence)
     
     attendees = []
     
@@ -245,71 +278,26 @@ def extract_attendees(sentence: str, email_book: List[Dict[str, str]] = None) ->
                 if {"email": member_email} not in attendees:
                     attendees.append({"email": member_email})
         else:
-            # Look up individual in email book
-            email = None
+            # Look up in email_book
+            found = False
             for entry in email_book:
-                if entry.get('name', '').lower() == person_name_lower:
-                    email = entry.get('email')
-                    break
-                # Also check if name is in email (e.g., "John Doe" matches "john.doe@example.com")
-                email_addr = entry.get('email', '')
-                if person_name_lower in email_addr.lower().replace('@example.com', '').replace('.', ' '):
-                    email = entry.get('email')
+                entry_name = entry.get('name', '')
+                entry_email = entry.get('email', '')
+                
+                if (entry_name.lower() == person_name_lower or 
+                    entry.get('first_name', '').lower() == person_name_lower):
+                    if {"email": entry_email} not in attendees:
+                        attendees.append({"email": entry_email})
+                    found = True
                     break
             
-            if email:
-                attendees.append({"email": email})
-            else:
-                # Generate fallback email
-                fallback = person_name.lower().replace(" ", ".") + "@example.com"
-                if {"email": fallback} not in attendees:
-                    attendees.append({"email": fallback})
+            # If not found in email_book, don't create a fake email
+            if not found:
+                print(f"DEBUG: Name '{person_name}' not found in email book, skipping...")
+    
+    # Add team attendees
+    for team_attendee in team_attendees:
+        if team_attendee not in attendees:
+            attendees.append(team_attendee)
     
     return attendees
-
-
-def extract_additional_attendees(sentence: str) -> List[str]:
-    """
-    Extract additional attendees from patterns like "+ John" or "invite John".
-    
-    Args:
-        sentence: The natural language sentence to parse
-        
-    Returns:
-        List of additional attendee names
-    """
-    additional = []
-    
-    # Pattern for "+ Name" or "+ invite Name"
-    invite_match = re.search(r'\+\s*(?:invite\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)', sentence)
-    if invite_match:
-        additional.append(invite_match.group(1))
-    
-    return additional
-
-
-if __name__ == "__main__":
-    # Test the module
-    test_sentences = [
-        "Meeting with John",
-        "Meeting with John and Jane",
-        "Meeting with John, Jane, and Bob",
-        "Call with John + Jane + Bob",
-        "Chat with the team",
-        "Sync with engineering team",
-        "1:1 with John",
-        "Have a meeting with Bob tomorrow",
-        "create a meeting with John + finance + legal tomorrow 6pm re term sheet",
-        "create a meeting with john123@gmail.com",
-        "schedule a call with john123@gmail.com and jane@example.com tomorrow",
-        "fix a meeting with rajit sir at 4 pm on 6th for 42 min",
-    ]
-    
-    for sentence in test_sentences:
-        print(f"\nSentence: {sentence}")
-        names = extract_attendee_names(sentence)
-        emails = extract_attendee_emails(sentence)
-        print(f"Names: {names}")
-        print(f"Emails: {emails}")
-        attendees = extract_attendees(sentence)
-        print(f"Attendees: {attendees}")

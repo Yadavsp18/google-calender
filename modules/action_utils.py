@@ -2,104 +2,66 @@
 Action/Intent Extraction Module
 Extracts action type (create/update/cancel) and intent from natural language sentences.
 Includes pattern-based action detection for meeting-related queries.
+
+Note: This module now imports patterns from separate modules:
+- modules/create_patterns.py
+- modules/cancel_patterns.py
+- modules/update_patterns.py
 """
 
 import re
 from typing import Dict, Any, Tuple
+from collections import Counter
+
+# Import patterns from separate modules
+from modules.create_patterns import (
+    CREATE_KEYWORDS,
+    NOT_CREATE_KEYWORDS,
+    extract_create_details,
+    is_create_intent,
+    CREATE_PATTERNS
+)
+
+from modules.cancel_patterns import (
+    CANCEL_PATTERNS,
+    CANCEL_KEYWORDS,
+    CANCEL_KW_SET,
+    is_cancel_pattern,
+    has_cancel_keyword,
+    extract_cancel_details,
+    has_cancel_action
+)
+
+from modules.update_patterns import (
+    UPDATE_PATTERNS,
+    RESCHEDULE_PATTERNS,
+    UPDATE_KEYWORDS,
+    RESCHEDULE_KEYWORDS,
+    UPDATE_RESCHEDULE_KW_SET,
+    is_update_pattern,
+    is_reschedule_pattern,
+    has_update_keyword,
+    has_reschedule_keyword,
+    has_update_or_reschedule_action,
+    extract_update_details
+)
 
 
 # =============================================================================
 # Action to Intent Mapping
+# Note: reschedule keywords (move, shift, push, postpone) now map to update_meeting intent
 # =============================================================================
 
 ACTION_TO_INTENT = {
     'schedule_meeting': ['schedule', 'set up', 'book', 'fix', 'arrange', 'create', 'plan', 'block', 'have', 'host', 'make'],
-    'reschedule_meeting': ['reschedule', 'move', 'shift', 'push', 'postpone', 'bring forward'],
+    'update_meeting': ['update', 'change', 'modify', 'replace', 'switch', 'adjust', 'amend', 'edit', 'revise', 'alter', 'reschedule', 'move', 'shift', 'push', 'postpone', 'bring forward'],
     'cancel_meeting': ['cancel', 'delete', 'remove', 'drop', 'scrap', 'abort', 'void', 'nullify'],
-    'update_meeting': ['update', 'change', 'modify', 'replace', 'switch', 'adjust', 'amend', 'edit', 'revise', 'alter'],
 }
 
 
 # =============================================================================
-# Action Detection Patterns
+# Main Detection Functions
 # =============================================================================
-
-CREATE_PATTERNS = [
-    # Direct create patterns (explicit create keywords)
-    r'\bcreate\s+(?:a\s+|an\s+)?(?:meeting|event|call|appointment|standup|session)\b',
-    r'\bmake\s+(?:a\s+|an\s+)?(?:meeting|event|call|appointment|standup|session)\b',
-    r'\bbook\s+(?:a\s+|an\s+)?(?:meeting|event|call|appointment|standup|session)\b',
-    r'\bschedule\s+(?:a\s+|an\s+)?(?:meeting|event|call|appointment|standup|session)\b',
-    r'\barrange\s+(?:a\s+|an\s+)?(?:meeting|event|call|appointment|standup|session)\b',
-    r'\borganize\s+(?:a\s+|an\s+)?(?:meeting|event|call|appointment|standup|session)\b',
-    r'\bset\s+up\s+(?:a\s+|an\s+)?(?:meeting|event|call|appointment|standup|session)\b',
-    r'\bput\s+(?:a\s+|an\s+)?(?:meeting|event|call|appointment|standup|session)\b',
-    r'\bfix\s+(?:a\s+|an\s+)?(?:meeting|event|call|appointment|standup|session)\b',
-    r'\bblock\s+(?:a\s+|an\s+)?(?:meeting|event|call|appointment|slot|time|standup|session)\b',
-    r'\bhave\s+(?:a\s+|an\s+)?(?:meeting|event|call|appointment|standup|session)\b',
-    r'\bhost\s+(?:a\s+|an\s+)?(?:meeting|event|call|appointment|standup|session)\b',
-    # Flexible patterns for "Schedule a team standup" style
-    r'\b(schedule|book|arrange|organize|set\s+up|plan|setup)\s+.*(?:standup|session|meeting|call|appointment)\b',
-    # Meeting with person patterns (implicit create) - ONLY if no reschedule or cancel keywords
-    r'(?!.*(?:move|shift|push|postpone|reschedule|bring\s+forward|drop|cancel|delete|remove|scrap|abort|void|nullify|update|change|modify|replace|switch|adjust|amend|edit|revise|alter))(?:meeting|call|chat|hangout)\s+with\b',
-    # Also match "create a meeting with" pattern
-    r'\bcreate\s+(?:a\s+)?(?:meeting|event|call|appointment)\s+with\b',
-    r'\bschedule\s+(?:a\s+)?(?:meeting|event|call|appointment)\s+with\b',
-    r'\bhave\s+(?:a\s+)?(?:meeting|call|chat|hangout)\s+with\b',
-    r'\barrange\s+(?:a\s+)?(?:meeting|call)\s+with\b',
-    r'\bbook\s+(?:a\s+)?(?:meeting|call)\s+with\b',
-]
-
-CANCEL_PATTERNS = [
-    # Direct cancel patterns - simplified to match cancel words followed by meeting/event/appointment
-    r'\bcancel(?:ing)?\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
-    r'\bdelete\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
-    r'\bremove\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
-    r'\bdrop\s+(?:meeting|it|this|that)',
-    r'\bdrop\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
-    r'\bscrap\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
-    r'\babort\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
-    r'\bvoid\s+.*(?:meeting|event|appointment)',
-    r'\bnullify\s+.*(?:meeting|event|appointment)',
-    # Also match cancel words directly followed by any word (for "remove it", "drop this", etc.)
-    r'\b(cancel|delete|remove|drop|scrap|abort|void|nullify)\s+(it|this|that|everything)',
-    # Match standalone cancel keywords when followed by meeting-related words
-    r'\b(cancel|delete|remove|drop|scrap)\b.*(?:meeting|event|appointment|call|sync|message|chat)',
-]
-
-UPDATE_PATTERNS = [
-    # Direct update patterns
-    r'update\s+.*meeting',
-    r'change\s+.*meeting',
-    r'modify\s+.*meeting',
-    r'edit\s+.*meeting',
-    r'revise\s+.*meeting',
-    r'alter\s+.*meeting',
-    r'adjust\s+.*meeting',
-    r'amend\s+.*meeting',
-    r'replace\s+.*(?:Google\s+Meet|Google Meet|meet\.google|gmeet|zoom|video\s+call|link|location|room)',
-    r'(?:change|extend|shorten|increase|decrease)\s+.*(?:duration|length|time)',
-    r'from\s+\d+\s*(?:minute|hour|min|hr)s?\s+to\s+\d+\s*(?:minute|hour|min|hr)s?',
-    # Patterns with prepositions
-    r'\bto\s+(update|change|modify|edit|revise|alter|adjust|amend|replace)\b',
-    r'\b(update|change|modify|edit|revise|alter|adjust|amend|replace)\s+(a|the|my|our|this|that|it|meeting|event|appointment|call)',
-]
-
-RESCHEDULE_PATTERNS = [
-    # Direct reschedule patterns - simplified to match reschedule words followed by meeting/event/appointment
-    r'reschedule\s+.*meeting',
-    r'postpone\s+.*meeting',
-    r'move\s+.*meeting',
-    r'shift\s+.*meeting',
-    r'push\s+.*meeting',
-    r'bring\s+forward',
-    # Also match reschedule keywords directly (for "push it", "move this", etc.)
-    r'\b(postpone|push|move|shift)\s+(it|this|that|back)',
-    r'\b(reschedule|move|shift|postpone|push)\s+(a|the|my|our|this|that|it|meeting|event|appointment|call|sync)',
-    # Match standalone reschedule keywords followed by time/date indicators
-    r'\b(postpone|push|move|shift)\s+.*(?:to|by|from)\s+\d',
-]
-
 
 def detect_action(sentence: str) -> Tuple[bool, bool, bool, bool]:
     """
@@ -160,114 +122,62 @@ def detect_action(sentence: str) -> Tuple[bool, bool, bool, bool]:
 
 
 # Keywords that indicate update/reschedule (these should NOT trigger create)
-UPDATE_KEYWORDS = [
+UPDATE_KEYWORDS_LIST = [
     'reschedule', 'move', 'shift', 'push', 'postpone', 'bring forward',
     'update', 'change', 'modify', 'replace', 'switch', 'adjust', 'amend',
     'edit', 'revise', 'alter', 'forward'  # 'forward' for 'bring forward'
 ]
 
 # Keywords that indicate cancel (but not reschedule)
-CANCEL_KEYWORDS = [
+CANCEL_KEYWORDS_LIST = [
     'cancel', 'delete', 'remove', 'drop', 'scrap', 'abort', 'void', 'nullify'
 ]
 
 
-def extract_action_intent(sentence: str) -> Dict[str, str]:
+def has_create_keyword(sentence: str) -> bool:
     """
-    Extract action and intent from sentence.
+    Check if the sentence contains any create keyword.
     
     Args:
-        sentence: The natural language sentence
+        sentence: The natural language sentence to check
+        
+    Returns:
+        True if the sentence contains any create keyword
+    """
+    text_lower = sentence.lower()
+    return any(keyword.lower() in text_lower for keyword in CREATE_KEYWORDS)
+
+
+def extract_action_intent(sentence: str) -> Dict[str, str]:
+    """
+    Extract action and intent from sentence using pattern-based detection.
+    
+    Args:
+        sentence: The natural language sentence to analyze
         
     Returns:
         Dictionary with action and intent
     """
-    text = sentence.lower().strip()
+    # Pattern-based detection
+    is_create, is_cancel, is_update, is_reschedule = detect_action(sentence)
     
-    # Check for update/reschedule keywords
-    has_update_keyword = any(kw in text for kw in UPDATE_KEYWORDS)
-    has_cancel_keyword = any(kw in text for kw in CANCEL_KEYWORDS)
-    has_reschedule_keyword = any(kw in text for kw in ['reschedule', 'move', 'shift', 'push', 'postpone', 'bring forward'])
+    # Priority: Cancel > Update/Reschedule > Create
+    if is_cancel:
+        return {"action": "cancel", "intent": "cancel_meeting"}
     
-    # Define cancel patterns (only if no reschedule keywords)
-    cancel_patterns = [
-        r'cancel(?:ing)?\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
-        r'delete\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
-        r'remove\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
-        r'drop\s+(?:meeting|it|this|that)',
-        r'drop\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
-        r'scrap\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
-        r'abort\s+.*(?:meeting|event|appointment|it|this|that|message|chat)',
-        r'void\s+.*(?:meeting|event|appointment)',
-        r'nullify\s+.*(?:meeting|event|appointment)',
-        r'\b(cancel|delete|remove|drop|scrap|abort|void|nullify)\s+(it|this|that|everything)',
-    ]
-
+    if is_update or is_reschedule:
+        return {"action": "update", "intent": "update_meeting"}
     
-    # Define update/reschedule patterns
-    update_patterns = [
-        # Direct action keywords
-        r'\b(reschedule|move|shift|push|postpone|bring\s+forward|update|change|modify|replace|switch|adjust|amend|edit|revise|alter)\b.*(?:meeting|event|call|appointment)',
-        # Flexible patterns without requiring "meeting"
-        r'\bpostpone\b.*(?:it|this|that|by|to)\b',
-        r'\bpush\b.*(?:it|this|that|by|to|back)\b',
-        r'\bmove\b.*(?:it|this|that|to|by)\b',
-        r'\bshift\b.*(?:it|this|that|to|by)\b',
-        r'\breschedule\b.*(?:it|this|that|to|by)\b',
-        r'\b(from|to)\s+\d{1,2}:\d{2}\b',  # time range patterns like "from 5pm to 6pm"
-        # Location/link change
-        r'(?:change|replace|switch)\s+(?:the\s+)?(?:meeting\s+)?(?:location|room|platform|link|Google\s+Meet|Meet|gmeet|zoom)',
-        # Duration change
-        r'(?:change|extend|shorten|increase|decrease)\s+(?:the\s+)?(?:meeting\s+)?(?:duration|length|time)',
-        r'\bfrom\s+\d+\s*(?:minute|hour|min|hr)s?\s+to\s+\d+\s*(?:minute|hour|min|hr)s?\b',
-        # Time reference patterns
-        r'\bto\s+\d{1,2}:?\d{2}\s*(?:am|pm)?\b',
-        r'\bpush\s+.*\s+by\s+\d+\s*(?:minute|hour|min|hr)s?\b',
-        r'\bmove\s+.*(?:to|from)\s+\w+\s+\d+(?:st|nd|rd|th)?\b',
-    ]
+    if is_create:
+        return {"action": "create", "intent": "schedule_meeting"}
     
-    for pattern in cancel_patterns:
-        if re.search(pattern, text, re.IGNORECASE):
-            return {
-                "action": "cancel",
-                "intent": "cancel_meeting"
-            }
-
+    # Default: assume create if meeting-related words are present
+    text_lower = sentence.lower()
+    if any(word in text_lower for word in ['meeting', 'call', 'event', 'appointment', 'standup', 'sync']):
+        return {"action": "create", "intent": "schedule_meeting"}
     
-    # Check for update/reschedule patterns
-    if has_update_keyword:
-        for pattern in update_patterns:
-            if re.search(pattern, text, re.IGNORECASE):
-                return {
-                    "action": "update",
-                    "intent": "update_meeting"
-                }
+    # Last resort: check for create keywords without meeting words
+    if has_create_keyword(sentence):
+        return {"action": "create", "intent": "schedule_meeting"}
     
-    # Additional check: if has reschedule keyword, treat as update even if no specific pattern matched
-    if has_reschedule_keyword:
-        return {
-            "action": "update",
-            "intent": "update_meeting"
-        }
-    
-    # Check for explicit create patterns
-    create_patterns = [
-        r'\b(create|make|book|schedule|arrange|organize|set\s+up|fix|block|have|host)\s+(?:a\s+)?(?:meeting|event|call|appointment)\b',
-        r'(?!.*(?:move|shift|push|postpone|reschedule|change|update|replace|drop|cancel|delete|remove|scrap))(?:meeting|call|chat|hangout)\s+with\b',
-        r'\bcreate\s+(?:a\s+)?(?:meeting|event|call|appointment)\s+with\b',
-        r'\bschedule\s+(?:a\s+)?(?:meeting|event|call|appointment)\s+with\b',
-        r'\bhave\s+(?:a\s+)?(?:meeting|call|chat|hangout)\s+with\b',
-    ]
-    
-    for pattern in create_patterns:
-        if re.search(pattern, text, re.IGNORECASE):
-            return {
-                "action": "create",
-                "intent": "schedule_meeting"
-            }
-    
-    # Default to create (fallback)
-    return {
-        "action": "create",
-        "intent": "schedule_meeting"
-    }
+    return {"action": "unknown", "intent": None}

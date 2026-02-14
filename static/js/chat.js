@@ -375,7 +375,7 @@ function renderCancellationDetails(data) {
         }
         
         if (attendees) {
-            detailsHtml += `<div class="detail-row"><span class="detail-label">Attendees:</span><span class="detail-value">${escapeHtml(attendees)}</span></div>`;
+            detailsHtml += `<div class="detail-row"><span class="detail-labe    l">Attendees:</span><span class="detail-value">${escapeHtml(attendees)}</span></div>`;
         }
         
         detailsHtml += '</div>';

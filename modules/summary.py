@@ -6,18 +6,8 @@ Extracts meeting title/summary from natural language sentences.
 import re
 from typing import Optional, List, Tuple
 
-
-# Patterns that indicate an update operation (not title extraction)
-UPDATE_PATTERNS = [
-    r'^update\s+(?:the\s+)?(?:meeting|event)?',
-    r'^reschedule\s+(?:the\s+)?(?:meeting|event)?',
-    r'^change\s+(?:the\s+)?(?:meeting|event)?',
-    r'^modify\s+(?:the\s+)?(?:meeting|event)?',
-    r'^move\s+(?:the\s+)?(?:meeting|event)?',
-    r'^shift\s+(?:the\s+)?(?:meeting|event)?',
-    r'^postpone\s+(?:the\s+)?(?:meeting|event)?',
-    r'^bring\s+forward\s+(?:the\s+)?(?:meeting|event)?',
-]
+# Import UPDATE patterns from update_patterns module
+from modules.update_patterns import UPDATE_SENTENCE_PATTERNS
 
 
 # Meeting type patterns that can be combined with purpose
@@ -63,7 +53,7 @@ def is_update_sentence(sentence: str) -> bool:
     """
     text = sentence.lower().strip()
     
-    for pattern in UPDATE_PATTERNS:
+    for pattern in UPDATE_SENTENCE_PATTERNS:
         if re.search(pattern, text):
             return True
     

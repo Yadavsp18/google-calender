@@ -3,6 +3,16 @@
 // ==========================================
 
 /**
+ * Track whether chat has been initialized
+ */
+let chatInitialized = false;
+
+/**
+ * Track if we're currently in a chat session with unsaved messages
+ */
+let hasUnsavedMessages = false;
+
+/**
  * Escape HTML special characters
  */
 function escapeHtml(text) {
@@ -25,6 +35,11 @@ function toggleSidebar() {
         expandBtn.style.display = 'none';
         if (mainWrapper) {
             mainWrapper.classList.remove('sidebar-collapsed');
+        }
+        // Re-initialize chat if it was initialized before
+        // Only re-render if we don't have unsaved messages
+        if (chatInitialized && typeof renderTodayChatHistory === 'function' && !hasUnsavedMessages) {
+            renderTodayChatHistory();
         }
     } else {
         // Collapse sidebar
@@ -54,6 +69,12 @@ async function clearAllChatHistory() {
  * Load chat dates into sidebar from server
  */
 async function loadChatDates() {
+    // Check if we're on the events page - don't load sidebar chat dates there
+    if (window.location.pathname === '/events') {
+        console.log('Events page detected, skipping sidebar chat date loading');
+        return;
+    }
+    
     try {
         const dates = await getAllChatDates();
         const datesList = document.getElementById('chatDatesList');
@@ -222,6 +243,9 @@ async function renderTodayChatHistory() {
     } catch (error) {
         console.error('Error rendering today chat history:', error);
         return false;
+    } finally {
+        // Mark chat as initialized after rendering
+        chatInitialized = true;
     }
 }
 

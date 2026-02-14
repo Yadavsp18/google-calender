@@ -25,12 +25,16 @@
                         </svg>
                         Jarvin Meeting Creator
                     </h1>
-                    <a href="#" onclick="toggleCalendarView(); return false;" class="view-meetings-btn" id="viewEventsBtn">📅 View Calender</a>
+                    <div class="button-group">
+                        <a href="#" onclick="convertExcelToJson(); return false;" class="view-meetings-btn" id="convertExcelBtn">📄 Convert Excel -> Json</a>
+                        <a href="#" onclick="toggleCalendarView(); return false;" class="view-meetings-btn" id="viewEventsBtn">📅 View Calendar</a>
+                    </div>
                     <p>Chat with me to create, manage, or cancel meetings</p>
                 </div>
                 <div class="chat-messages" id="chatMessages">
                     {% block messages %}{% endblock %}
                 </div>
+                {% block after_chat_container %}{% endblock %}
                 <!-- Hidden element for chat messages from server -->
                 <div id="chatMessageData" data-message=""></div>
                 <div class="chat-input-area">
@@ -68,6 +72,52 @@
         </div>
     </div>
     
+    <!-- Excel Converter Modal -->
+    <div id="excelConverterModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                    Excel to JSON
+                </h2>
+                <button type="button" class="modal-close-btn" onclick="closeExcelConverterModal()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="excel-file-input">
+                    <input type="file" id="excelModalFileInput" accept=".xlsx,.xls" onchange="handleExcelFileSelect(this)">
+                    <label for="excelModalFileInput" class="excel-file-label" id="excelModalFileLabel">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p>Click to select Excel file</p>
+                        <span>Supports .xlsx and .xls</span>
+                    </label>
+                </div>
+                <div class="excel-modal-buttons">
+                    <button type="button" class="modal-convert-btn" id="modalConvertBtn" onclick="convertExcelModal()" disabled>
+                        Convert to JSON
+                    </button>
+                    <button type="button" class="modal-download-btn" id="modalDownloadBtn" onclick="downloadExcelJson()" style="display: none;">
+                        Download JSON
+                    </button>
+                </div>
+                <div class="modal-status" id="modalStatus"></div>
+            </div>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
     <script src="{{ url_for('static', filename='js/history.js') }}"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
@@ -77,5 +127,7 @@
     <script src="{{ url_for('static', filename='js/send.js') }}"></script>
     <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/excel_converter.js') }}"></script>
+    {% block scripts %}{% endblock %}
 </body>
 </html>

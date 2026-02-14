@@ -93,9 +93,12 @@ function hideCalendarView() {
         btn.innerHTML = '📅 View Events';
     }
     
-    // Restore chat history
-    const today = new Date().toISOString().split('T')[0];
-    renderChatHistory(today);
+    // Restore chat history or show welcome message
+    renderTodayChatHistory().then(hasChats => {
+        if (!hasChats) {
+            showWelcomeMessage();
+        }
+    });
 }
 
 // Export for use in other modules
