@@ -1,0 +1,18 @@
+<!-- Standalone list events time period clarification -->
+<div class="message bot {{ message_type if message_type else '' }}">
+    {% if icon %}
+    <span class="message-icon">{{ icon }}</span>
+    {% endif %}
+    <div class="message-bubble">
+        <h3>{{ title }}</h3>
+        <p>{{ message }}</p>
+
+        <div class="quick-actions">
+            <button class="quick-action-btn" onclick="sendQuickMessage('list events for today')">📅 Today</button>
+            <button class="quick-action-btn" onclick="sendQuickMessage('list events for tomorrow')">📅 Tomorrow</button>
+            <button class="quick-action-btn" onclick="sendQuickMessage('list events for this week')">📅 This Week</button>
+            <button class="quick-action-btn" onclick="sendQuickMessage('list events for next week')">📅 Next Week</button>
+            <button class="quick-action-btn" onclick="sendQuickMessage('list all my events')">📋 All Events</button>
+        </div>
+    </div>
+</div>

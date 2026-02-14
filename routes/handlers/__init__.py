@@ -7,6 +7,7 @@ Contains handlers for meeting operations.
 from .create import handle_create_meeting, _execute_create_meeting
 from .update import handle_update_meeting
 from .cancel import handle_cancel_meeting
+from .list_events import handle_list_events
 from .clarify import (
     handle_date_clarification,
     handle_time_clarification,
@@ -20,6 +21,7 @@ __all__ = [
     '_execute_create_meeting',
     'handle_update_meeting',
     'handle_cancel_meeting',
+    'handle_list_events',
     'handle_date_clarification',
     'handle_time_clarification',
     'handle_meal_time_clarification',

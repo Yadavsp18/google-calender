@@ -45,7 +45,21 @@ NOT_CREATE_KEYWORDS: Set[str] = {
     'revise', 'alter',
     'cancel', 'delete', 'remove',
     'drop', 'scrap', 'abort',
-    'void', 'nullify'
+    'void', 'nullify',
+    # List-related keywords that should block create intent
+    'list', 'lists', 'listed', 'listing',
+    'show', 'shows', 'showing', 'showed',
+    'view', 'views', 'viewing', 'viewed',
+    'display', 'displays', 'displaying', 'displayed',
+    'get', 'gets', 'getting',
+    'see', 'sees', 'seeing', 'saw',
+    'check', 'checks', 'checking', 'checked',
+    'fetch', 'fetches', 'fetching',
+    'retrieve', 'retrieves', 'retrieving',
+    'what', "what's", 'whatis',
+    'tell', 'tells', 'telling',
+    'give', 'gives', 'giving',
+    'load', 'loads', 'loading'
 }
 
 

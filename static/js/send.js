@@ -222,8 +222,7 @@ async function sendMessage() {
             // Scroll to bottom
             scrollToBottom();
             
-            // Save bot response to chat history using the messagesHtml directly
-            // This ensures we save the correct response for this message
+            // Save bot response to chat history
             addToChatHistory(today, text, messagesHtml, 'success', fileAttachment, true);
             
             const newChatInput = document.getElementById('chatInput');

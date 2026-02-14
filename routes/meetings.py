@@ -24,7 +24,8 @@ from services.calendar import (
 from .handlers import (
     handle_create_meeting,
     handle_update_meeting,
-    handle_cancel_meeting
+    handle_cancel_meeting,
+    handle_list_events
 )
 from modules.action_utils import detect_action
 
@@ -238,8 +239,9 @@ def nlp_create():
     cancel_keywords = ['cancel', 'cancelled', 'cancelling', 'delete', 'deleted', 'remove', 'removed', 'drop', 'scrap', 'abort']
     update_keywords = ['update', 'updated', 'change', 'changed', 'modify', 'modified', 'edit', 'amend']
     reschedule_keywords = ['reschedule', 'rescheduled', 'postpone', 'postponed', 'move', 'moved', 'shift', 'pushed']
+    list_events_keywords = ['list', 'show', 'view', 'display', 'get', 'check', 'fetch', 'retrieve', 'see', 'what']
     
-    has_action_keyword = any(kw in sentence_lower for kw in cancel_keywords + update_keywords + reschedule_keywords)
+    has_action_keyword = any(kw in sentence_lower for kw in cancel_keywords + update_keywords + reschedule_keywords + list_events_keywords)
     
     # If sentence too short AND no action keyword, ask for more details
     if word_count <= 6 and not has_action_keyword:
@@ -270,14 +272,18 @@ def nlp_create():
         else:
             print(f"DEBUG: File upload failed: {result.get('error')}")
     
-    is_create, is_cancel, is_update, is_reschedule = detect_action(sentence)
+    is_create, is_cancel, is_update, is_reschedule, is_list_events = detect_action(sentence)
     
     # Debug output
     print(f"\nDEBUG: Sentence='{sentence}'")
-    print(f"DEBUG: is_create={is_create}, is_cancel={is_cancel}, is_update={is_update}, is_reschedule={is_reschedule}")
+    print(f"DEBUG: is_create={is_create}, is_cancel={is_cancel}, is_update={is_update}, is_reschedule={is_reschedule}, is_list_events={is_list_events}")
     print(f"DEBUG: drive_file_id={drive_file_id}, drive_file_name={drive_file_name}, drive_file_url={drive_file_url}")
     
-    if is_cancel:
+    # Handle list events first (has priority)
+    if is_list_events:
+        print("DEBUG: Routing to handle_list_events")
+        return handle_list_events(sentence, service)
+    elif is_cancel:
         print("DEBUG: Routing to handle_cancel_meeting")
         return handle_cancel_meeting(sentence, service)
     elif is_reschedule or is_update:
@@ -759,3 +765,4 @@ def update_event(event_id):
             icon="❌",
             message=result.get('error', 'Unknown error'),
             message_type="error")
+

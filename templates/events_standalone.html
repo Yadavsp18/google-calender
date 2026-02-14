@@ -1,0 +1,69 @@
+<!-- Standalone events for chat - no base.html -->
+<div class="message bot">
+    <span class="message-icon">📅</span>
+    <div class="message-bubble">
+        <h3>{{ title if title else "Your Events" }}</h3>
+        
+        {% if events %}
+        <div style="margin-top: 15px;">
+            {% for event in events %}
+            <div class="event-details" style="margin-bottom: 15px; padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                <div class="detail-row">
+                    <span class="detail-icon">📋</span>
+                    <div class="detail-content">
+                        <div class="detail-label">Meeting Title</div>
+                        <div class="detail-value">{{ event.summary }}</div>
+                    </div>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-icon">🕐</span>
+                    <div class="detail-content">
+                        <div class="detail-label">Start</div>
+                        <div class="detail-value">{{ event.start }}</div>
+                    </div>
+                </div>
+                {% if event.end %}
+                <div class="detail-row">
+                    <span class="detail-icon">🕑</span>
+                    <div class="detail-content">
+                        <div class="detail-label">End</div>
+                        <div class="detail-value">{{ event.end }}</div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if event.location %}
+                <div class="detail-row">
+                    <span class="detail-icon">📍</span>
+                    <div class="detail-content">
+                        <div class="detail-label">Location</div>
+                        <div class="detail-value">{{ event.location }}</div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if event.attendees %}
+                <div class="detail-row">
+                    <span class="detail-icon">👥</span>
+                    <div class="detail-content">
+                        <div class="detail-label">Attendees</div>
+                        <div class="detail-value">{{ event.attendees }}</div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if event.hangoutLink %}
+                <div style="margin-top: 10px;">
+                    <a href="{{ event.hangoutLink }}" target="_blank" class="quick-action-btn" style="display: inline-block;">🎥 Join Meeting</a>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>No events found.</p>
+        {% endif %}
+        
+        <div class="quick-actions" style="margin-top: 15px;">
+            <button class="quick-action-btn" onclick="window.location.href='/'">🏠 Create Another Meeting</button>
+            <button class="quick-action-btn" onclick="window.location.href='/events'">📋 View All Events</button>
+        </div>
+    </div>
+</div>

@@ -46,6 +46,16 @@ from modules.update_patterns import (
     extract_update_details
 )
 
+from modules.list_events_patterns import (
+    LIST_PATTERNS,
+    LIST_KEYWORDS,
+    EVENT_WORDS,
+    extract_list_event_details,
+    is_list_events_intent,
+    needs_clarification,
+    detect_time_period
+)
+
 
 # =============================================================================
 # Action to Intent Mapping
@@ -63,7 +73,7 @@ ACTION_TO_INTENT = {
 # Main Detection Functions
 # =============================================================================
 
-def detect_action(sentence: str) -> Tuple[bool, bool, bool, bool]:
+def detect_action(sentence: str) -> Tuple[bool, bool, bool, bool, bool]:
     """
     Detect the action type from the sentence.
     
@@ -71,7 +81,7 @@ def detect_action(sentence: str) -> Tuple[bool, bool, bool, bool]:
         sentence: The natural language sentence to analyze
         
     Returns:
-        Tuple of (is_create, is_cancel, is_update, is_reschedule) booleans
+        Tuple of (is_create, is_cancel, is_update, is_reschedule, is_list_events) booleans
     """
     import traceback
     # Get the calling function name
@@ -83,6 +93,17 @@ def detect_action(sentence: str) -> Tuple[bool, bool, bool, bool]:
     print(f"\n=== DEBUG detect_action ===")
     print(f"Sentence: '{sentence}'")
     print(f"Called from: {caller_name}")
+    
+    # Check list events first (has its own detection logic)
+    print("\n--- Checking LIST_EVENTS_PATTERNS ---")
+    is_list_events = False
+    for p in LIST_PATTERNS:
+        match = re.search(p, sentence, re.IGNORECASE)
+        if match:
+            is_list_events = True
+            print(f"MATCHED: '{p}' -> '{match.group(0)}'")
+            break
+    print(f"is_list_events = {is_list_events}")
     
     # Check cancel first
     print("\n--- Checking CANCEL_PATTERNS ---")
@@ -104,21 +125,27 @@ def detect_action(sentence: str) -> Tuple[bool, bool, bool, bool]:
     is_reschedule = any(re.search(p, sentence, re.IGNORECASE) for p in RESCHEDULE_PATTERNS)
     print(f"is_reschedule = {is_reschedule}")
     
-    # Check create (only if no cancel/update/reschedule)
+    # Check create (only if no cancel/update/reschedule/list_events)
     print("\n--- Checking CREATE_PATTERNS ---")
     is_create = False
-    if not (is_cancel or is_update or is_reschedule):
+    if not (is_cancel or is_update or is_reschedule or is_list_events):
         for p in CREATE_PATTERNS:
             match = re.search(p, sentence, re.IGNORECASE)
             if match:
                 is_create = True
                 print(f"MATCHED: '{p}' -> '{match.group(0)}'")
-    print(f"is_create = {is_create}")
+                break
+        # Also check with extract_create_details as backup
+        if not is_create:
+            create_details = extract_create_details(sentence)
+            is_create = create_details.get('is_create', False)
+            if is_create:
+                print(f"extract_create_details: {create_details.get('signals', [])}")
     
     print(f"\n=== FINAL RESULT ===")
-    print(f"is_create={is_create}, is_cancel={is_cancel}, is_update={is_update}, is_reschedule={is_reschedule}")
+    print(f"is_create={is_create}, is_cancel={is_cancel}, is_update={is_update}, is_reschedule={is_reschedule}, is_list_events={is_list_events}")
     
-    return is_create, is_cancel, is_update, is_reschedule
+    return is_create, is_cancel, is_update, is_reschedule, is_list_events
 
 
 # Keywords that indicate update/reschedule (these should NOT trigger create)
@@ -159,9 +186,21 @@ def extract_action_intent(sentence: str) -> Dict[str, str]:
         Dictionary with action and intent
     """
     # Pattern-based detection
-    is_create, is_cancel, is_update, is_reschedule = detect_action(sentence)
+    is_create, is_cancel, is_update, is_reschedule, is_list_events = detect_action(sentence)
     
-    # Priority: Cancel > Update/Reschedule > Create
+    # Priority: List Events > Cancel > Update/Reschedule > Create
+    if is_list_events:
+        # Get time period info
+        time_info = detect_time_period(sentence)
+        result = {"action": "list_events", "intent": "view_events"}
+        if time_info.get('clarification_needed'):
+            result["needs_clarification"] = True
+            result["time_period"] = time_info
+        else:
+            result["needs_clarification"] = False
+            result["time_period"] = time_info
+        return result
+    
     if is_cancel:
         return {"action": "cancel", "intent": "cancel_meeting"}
     

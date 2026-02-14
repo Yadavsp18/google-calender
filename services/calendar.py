@@ -629,6 +629,38 @@ def get_upcoming_events():
         return []
 
 
+def get_calendar_events(service, time_min, time_max, max_results=50):
+    """
+    Get events from Google Calendar within a date range.
+    
+    Args:
+        service: Google Calendar service instance
+        time_min: Start time in ISO format
+        time_max: End time in ISO format
+        max_results: Maximum number of events to return
+        
+    Returns:
+        List of event dictionaries
+    """
+    if not service:
+        return []
+    
+    try:
+        events_result = service.events().list(
+            calendarId='primary',
+            timeMin=time_min,
+            timeMax=time_max,
+            maxResults=max_results,
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+        
+        return events_result.get('items', [])
+    except Exception as e:
+        print(f"ERROR getting calendar events: {str(e)}")
+        return []
+
+
 def create_calendar_event(service, event_data):
     """Create a calendar event."""
     try:
